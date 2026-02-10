@@ -19,7 +19,7 @@ endobj
 3 0 obj
 <</Type /Page
 /Parent 2 0 R
-/MediaBox [0 0 200 200 ]
+/MediaBox [0 0 595 842 ]
 /Resources <</Font <</F1 5 0 R
 >>
 >>
@@ -27,12 +27,12 @@ endobj
 >>
 endobj
 4 0 obj
-<</Length 51
+<</Length 59
 >>
 stream
 BT
 /F1 12 Tf
-20 20 Td
+1 0 0 1 20 20 Tm
 (Hello using defaults) Tj
 ET
 
@@ -54,8 +54,8 @@ xref
 0000000057 00000 n 
 0000000114 00000 n 
 0000000238 00000 n 
-0000000338 00000 n 
-0000000407 00000 n 
+0000000346 00000 n 
+0000000415 00000 n 
 trailer
 <<
 /Size 7
@@ -63,6 +63,6 @@ trailer
 /Info 6 0 R
 >>
 startxref
-427
+435
 %%EOF
 

@@ -1,8 +1,8 @@
 ---
 version: 1.5.4
-title: pdf_with_info_test
+title: pdf_with_coloured_text_test
 file: ./test/paddlefish_test.gleam
-test_name: pdf_with_info_test
+test_name: pdf_with_coloured_text_test
 ---
 %PDF-1.4
 1 0 obj
@@ -27,13 +27,38 @@ endobj
 >>
 endobj
 4 0 obj
-<</Length 70
+<</Length 345
 >>
 stream
 BT
-/F1 10 Tf
-1 0 0 1 20 20 Tm
-(This PDF was created with Gleam) Tj
+1 0 0 rg
+/F1 12 Tf
+1 0 0 1 72 700 Tm
+(Red) Tj
+1 0.5 0 rg
+/F1 12 Tf
+1 0 0 1 72 650 Tm
+(Orange) Tj
+1 1 0 rg
+/F1 12 Tf
+1 0 0 1 72 600 Tm
+(Yellow) Tj
+0 1 0 rg
+/F1 12 Tf
+1 0 0 1 72 550 Tm
+(Green) Tj
+0 1 1 rg
+/F1 12 Tf
+1 0 0 1 72 500 Tm
+(Cyan) Tj
+0 0 1 rg
+/F1 12 Tf
+1 0 0 1 72 450 Tm
+(Blue) Tj
+0.5 0 1 rg
+/F1 12 Tf
+1 0 0 1 72 400 Tm
+(Violet) Tj
 ET
 
 endstream
@@ -45,15 +70,7 @@ endobj
 >>
 endobj
 6 0 obj
-<</ModDate (D:20260210154530Z)
-/CreationDate (D:20260210143000Z)
-/Producer (Paddlefish)
-/Creator (Paddlefish Test Suite)
-/Keywords (gleam, pdf, paddlefish)
-/Subject (A test PDF document)
-/Author (Louis Pilfold)
-/Title (Hello, Joe!)
->>
+<<>>
 endobj
 xref
 0 7
@@ -62,8 +79,8 @@ xref
 0000000057 00000 n 
 0000000114 00000 n 
 0000000238 00000 n 
-0000000357 00000 n 
-0000000426 00000 n 
+0000000633 00000 n 
+0000000702 00000 n 
 trailer
 <<
 /Size 7
@@ -71,6 +88,6 @@ trailer
 /Info 6 0 R
 >>
 startxref
-676
+722
 %%EOF
 

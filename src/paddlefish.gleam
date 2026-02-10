@@ -63,6 +63,14 @@ pub fn landscape(size: PageSize) -> PageSize {
   }
 }
 
+/// A colour for use in PDF content.
+///
+pub type Colour {
+  /// An RGB colour with red, green, and blue components from 0.0 to 1.0.
+  ///
+  Rgb(red: Float, green: Float, blue: Float)
+}
+
 /// A piece of text to be drawn on a page.
 ///
 pub opaque type Text {
@@ -72,6 +80,7 @@ pub opaque type Text {
     y: Float,
     font: option.Option(String),
     size: option.Option(Float),
+    colour: option.Option(Colour),
   )
 }
 
@@ -203,9 +212,8 @@ pub fn default_page_size(document: Document, size: PageSize) -> Document {
 /// ## Examples
 ///
 /// ```gleam
-/// let page = new_page(595.0, 842.0)
 /// new_document()
-/// |> add_page(page)
+/// |> add_page(new_page())
 /// ```
 ///
 pub fn add_page(document: Document, page: Page) -> Document {
@@ -214,19 +222,18 @@ pub fn add_page(document: Document, page: Page) -> Document {
 
 /// Create a new text element at the given position.
 ///
-/// The position is specified as an `#(x, y)` tuple in points from the
-/// bottom-left corner of the page.
+/// The position is specified in points from the bottom-left corner of the page.
 ///
 /// ## Examples
 ///
 /// ```gleam
-/// text("Hello, world!", at: #(72.0, 750.0))
+/// text("Hello, world!", x: 72.0, y: 750.0)
 /// |> font("Times-Roman")
 /// |> text_size(14.0)
 /// ```
 ///
-pub fn text(content: String, at position: #(Float, Float)) -> Text {
-  Text(content:, x: position.0, y: position.1, font: None, size: None)
+pub fn text(content: String, x x: Float, y y: Float) -> Text {
+  Text(content:, x:, y:, font: None, size: None, colour: None)
 }
 
 /// Set the font for a text element.
@@ -244,13 +251,19 @@ pub fn text_size(text: Text, size: Float) -> Text {
   Text(..text, size: Some(size))
 }
 
+/// Set the colour for a text element.
+///
+pub fn text_colour(text: Text, colour: Colour) -> Text {
+  Text(..text, colour: Some(colour))
+}
+
 /// Add a text element to the page.
 ///
 /// ## Examples
 ///
 /// ```gleam
-/// new_page(595.0, 842.0)
-/// |> add_text(text("Hello, world!", at: #(72.0, 750.0)))
+/// new_page()
+/// |> add_text(text("Hello, world!", x: 72.0, y: 750.0))
 /// ```
 ///
 pub fn add_text(page: Page, text: Text) -> Page {
@@ -284,13 +297,12 @@ type Value {
 /// ## Examples
 ///
 /// ```gleam
-/// let page =
-///   new_page(595.0, 842.0)
-///   |> add_text(text("Hello!", at: #(72.0, 750.0)))
-///
 /// new_document()
 /// |> title("My Document")
-/// |> add_page(page)
+/// |> add_page(
+///   new_page()
+///   |> add_text(text("Hello!", x: 72.0, y: 750.0)),
+/// )
 /// |> render
 /// ```
 ///
@@ -416,7 +428,7 @@ fn render_content_stream(
   let fonts = collect_fonts(contents, default_font)
   list.fold(contents, <<"BT\n">>, fn(stream, content) {
     case content {
-      ContentText(Text(content:, x:, y:, font:, size:)) -> {
+      ContentText(Text(content:, x:, y:, font:, size:, colour:)) -> {
         let font = option.unwrap(font, default_font)
         let size = option.unwrap(size, default_text_size)
         let font_index = case
@@ -427,16 +439,28 @@ fn render_content_stream(
           Error(_) -> 0
         }
         let font_key = "/F" <> int.to_string(font_index + 1)
+        let stream = case colour {
+          Some(Rgb(r, g, b)) -> <<
+            stream:bits,
+            render_float(r):utf8,
+            " ",
+            render_float(g):utf8,
+            " ",
+            render_float(b):utf8,
+            " rg\n",
+          >>
+          None -> stream
+        }
         <<
           stream:bits,
           font_key:utf8,
           " ",
           render_float(size):utf8,
-          " Tf\n",
+          " Tf\n1 0 0 1 ",
           render_float(x):utf8,
           " ",
           render_float(y):utf8,
-          " Td\n(",
+          " Tm\n(",
           content:utf8,
           ") Tj\n",
         >>
