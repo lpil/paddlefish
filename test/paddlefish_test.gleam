@@ -10,6 +10,30 @@ pub fn main() -> Nil {
   gleeunit.main()
 }
 
+pub fn portrait_already_portrait_test() {
+  assert pdf.portrait(pdf.PageSize(100.0, 200.0)) == pdf.PageSize(100.0, 200.0)
+}
+
+pub fn portrait_from_landscape_test() {
+  assert pdf.portrait(pdf.PageSize(200.0, 100.0)) == pdf.PageSize(100.0, 200.0)
+}
+
+pub fn portrait_square_test() {
+  assert pdf.portrait(pdf.PageSize(100.0, 100.0)) == pdf.PageSize(100.0, 100.0)
+}
+
+pub fn landscape_already_landscape_test() {
+  assert pdf.landscape(pdf.PageSize(200.0, 100.0)) == pdf.PageSize(200.0, 100.0)
+}
+
+pub fn landscape_from_portrait_test() {
+  assert pdf.landscape(pdf.PageSize(100.0, 200.0)) == pdf.PageSize(200.0, 100.0)
+}
+
+pub fn landscape_square_test() {
+  assert pdf.landscape(pdf.PageSize(100.0, 100.0)) == pdf.PageSize(100.0, 100.0)
+}
+
 pub fn pdf_empty_page_test() {
   let bytes =
     pdf.new_document()

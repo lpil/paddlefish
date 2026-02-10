@@ -41,6 +41,28 @@ pub const size_usa_letter = PageSize(width: 612.0, height: 792.0)
 
 pub const size_usa_legal = PageSize(width: 612.0, height: 1008.0)
 
+/// Convert a page size to portrait orientation.
+///
+/// The smaller dimension becomes the width.
+///
+pub fn portrait(size: PageSize) -> PageSize {
+  case size.width <=. size.height {
+    True -> size
+    False -> PageSize(width: size.height, height: size.width)
+  }
+}
+
+/// Convert a page size to landscape orientation.
+///
+/// The larger dimension becomes the width.
+///
+pub fn landscape(size: PageSize) -> PageSize {
+  case size.width >=. size.height {
+    True -> size
+    False -> PageSize(width: size.height, height: size.width)
+  }
+}
+
 /// A piece of text to be drawn on a page.
 ///
 pub opaque type Text {
