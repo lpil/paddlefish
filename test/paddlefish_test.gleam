@@ -1,85 +1,44 @@
 import birdie
 import gleam/bit_array
 import gleam/crypto
-import gleam/option.{Some}
 import gleam/time/calendar
 import gleam/time/duration
 import gleeunit
-import paddlefish/pdf.{
-  type Object, Array, Dictionary, Info, Int, Name, Object, Reference,
-}
+import paddlefish as pdf
 
 pub fn main() -> Nil {
   gleeunit.main()
 }
 
 pub fn pdf_with_info_test() {
-  let objects: List(Object) = [
-    Object(1, option.None, [
-      #("Type", Name("Catalog")),
-      #("Pages", Reference(2)),
-    ]),
-
-    Object(2, option.None, [
-      #("Type", Name("Pages")),
-      #("Kids", Array([Reference(3)])),
-      #("Count", Int(1)),
-    ]),
-
-    Object(3, option.None, [
-      #("Type", Name("Page")),
-      #("Parent", Reference(2)),
-      #("MediaBox", Array([Int(0), Int(0), Int(200), Int(200)])),
-      #(
-        "Resources",
-        Dictionary([#("Font", Dictionary([#("F1", Reference(5))]))]),
-      ),
-      #("Contents", Reference(4)),
-    ]),
-
-    // Content stream object (4 obj)
-    Object(
-      4,
-      option.Some(<<
-        "BT
-/F1 10 Tf
-20 20 Td
-(This PDF was created with Gleam) Tj
-ET
-",
-      >>),
-      [],
-    ),
-
-    // Font object (5 obj)
-    Object(5, option.None, [
-      #("Type", Name("Font")),
-      #("Subtype", Name("Type1")),
-      #("BaseFont", Name("Helvetica")),
-    ]),
-  ]
-
-  let info =
-    Info(
-      title: Some("Hello, Joe!"),
-      author: Some("Louis Pilfold"),
-      subject: Some("A test PDF document"),
-      keywords: Some("gleam, pdf, paddlefish"),
-      creator: Some("Paddlefish Test Suite"),
-      producer: Some("Paddlefish"),
-      creation_date: Some(#(
-        calendar.Date(2026, calendar.February, 10),
-        calendar.TimeOfDay(14, 30, 0, 0),
-        duration.minutes(0),
-      )),
-      modification_time: Some(#(
-        calendar.Date(2026, calendar.February, 10),
-        calendar.TimeOfDay(15, 45, 30, 0),
-        duration.minutes(0),
-      )),
+  let page =
+    pdf.new_page(200.0, 200.0)
+    |> pdf.draw_text(
+      "This PDF was created with Gleam",
+      at: #(20.0, 20.0),
+      font: "Helvetica",
+      size: 10.0,
     )
 
-  pdf.render(objects, info)
+  pdf.new_document()
+  |> pdf.title("Hello, Joe!")
+  |> pdf.author("Louis Pilfold")
+  |> pdf.subject("A test PDF document")
+  |> pdf.keywords("gleam, pdf, paddlefish")
+  |> pdf.creator("Paddlefish Test Suite")
+  |> pdf.producer("Paddlefish")
+  |> pdf.created_at(
+    calendar.Date(2026, calendar.February, 10),
+    calendar.TimeOfDay(14, 30, 0, 0),
+    duration.minutes(0),
+  )
+  |> pdf.modified_at(
+    calendar.Date(2026, calendar.February, 10),
+    calendar.TimeOfDay(15, 45, 30, 0),
+    duration.minutes(0),
+  )
+  |> pdf.add_page(page)
+  |> pdf.render
   |> bit_array_to_lossy_string
   |> birdie.snap("pdf_with_info_test")
 }
