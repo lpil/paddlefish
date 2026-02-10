@@ -1,8 +1,8 @@
 ---
 version: 1.5.4
-title: pdf_empty_page_test
+title: pdf_with_rectangles_test
 file: ./test/paddlefish_test.gleam
-test_name: pdf_empty_page_test
+test_name: pdf_with_rectangles_test
 ---
 %PDF-1.4
 1 0 obj
@@ -26,9 +26,21 @@ endobj
 >>
 endobj
 4 0 obj
-<</Length 0
+<</Length 101
 >>
 stream
+1 0 0 rg
+72 700 100 50 re
+f
+2 w
+0 0 1 RG
+72 600 100 50 re
+S
+3 w
+1 1 0 rg
+0 0 0 RG
+72 500 100 50 re
+B
 
 endstream
 endobj
@@ -42,7 +54,7 @@ xref
 0000000057 00000 n 
 0000000114 00000 n 
 0000000228 00000 n 
-0000000276 00000 n 
+0000000379 00000 n 
 trailer
 <<
 /Size 6
@@ -50,6 +62,6 @@ trailer
 /Info 5 0 R
 >>
 startxref
-296
+399
 %%EOF
 

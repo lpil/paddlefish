@@ -27,7 +27,7 @@ endobj
 >>
 endobj
 4 0 obj
-<</Length 345
+<</Length 381
 >>
 stream
 BT
@@ -35,26 +35,38 @@ BT
 /F1 12 Tf
 1 0 0 1 72 700 Tm
 (Red) Tj
+ET
+BT
 1 0.5 0 rg
 /F1 12 Tf
 1 0 0 1 72 650 Tm
 (Orange) Tj
+ET
+BT
 1 1 0 rg
 /F1 12 Tf
 1 0 0 1 72 600 Tm
 (Yellow) Tj
+ET
+BT
 0 1 0 rg
 /F1 12 Tf
 1 0 0 1 72 550 Tm
 (Green) Tj
+ET
+BT
 0 1 1 rg
 /F1 12 Tf
 1 0 0 1 72 500 Tm
 (Cyan) Tj
+ET
+BT
 0 0 1 rg
 /F1 12 Tf
 1 0 0 1 72 450 Tm
 (Blue) Tj
+ET
+BT
 0.5 0 1 rg
 /F1 12 Tf
 1 0 0 1 72 400 Tm
@@ -79,8 +91,8 @@ xref
 0000000057 00000 n 
 0000000114 00000 n 
 0000000238 00000 n 
-0000000633 00000 n 
-0000000702 00000 n 
+0000000669 00000 n 
+0000000738 00000 n 
 trailer
 <<
 /Size 7
@@ -88,6 +100,6 @@ trailer
 /Info 6 0 R
 >>
 startxref
-722
+758
 %%EOF
 

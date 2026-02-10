@@ -84,8 +84,23 @@ pub opaque type Text {
   )
 }
 
+/// A rectangle to be drawn on a page.
+///
+pub opaque type Rectangle {
+  Rectangle(
+    x: Float,
+    y: Float,
+    width: Float,
+    height: Float,
+    fill_colour: option.Option(Colour),
+    stroke_colour: option.Option(Colour),
+    line_width: option.Option(Float),
+  )
+}
+
 type Content {
   ContentText(Text)
+  ContentRectangle(Rectangle)
 }
 
 type Info {
@@ -270,6 +285,58 @@ pub fn add_text(page: Page, text: Text) -> Page {
   Page(..page, contents: list.append(page.contents, [ContentText(text)]))
 }
 
+/// Create a new rectangle at the given position with the given dimensions.
+///
+/// The position is specified in points from the bottom-left corner of the page.
+/// The rectangle will be invisible until a fill or stroke colour is set.
+///
+pub fn rectangle(
+  x x: Float,
+  y y: Float,
+  width width: Float,
+  height height: Float,
+) -> Rectangle {
+  Rectangle(
+    x:,
+    y:,
+    width:,
+    height:,
+    fill_colour: None,
+    stroke_colour: None,
+    line_width: None,
+  )
+}
+
+/// Set the fill colour for a rectangle.
+///
+pub fn rectangle_fill_colour(rectangle: Rectangle, colour: Colour) -> Rectangle {
+  Rectangle(..rectangle, fill_colour: Some(colour))
+}
+
+/// Set the stroke colour for a rectangle.
+///
+pub fn rectangle_stroke_colour(
+  rectangle: Rectangle,
+  colour: Colour,
+) -> Rectangle {
+  Rectangle(..rectangle, stroke_colour: Some(colour))
+}
+
+/// Set the line width for a rectangle's stroke in points.
+///
+pub fn rectangle_line_width(rectangle: Rectangle, width: Float) -> Rectangle {
+  Rectangle(..rectangle, line_width: Some(width))
+}
+
+/// Add a rectangle to the page.
+///
+pub fn add_rectangle(page: Page, rectangle: Rectangle) -> Page {
+  Page(
+    ..page,
+    contents: list.append(page.contents, [ContentRectangle(rectangle)]),
+  )
+}
+
 type Object {
   Object(
     id: Int,
@@ -415,6 +482,7 @@ fn collect_fonts(contents: List(Content), default_font: String) -> List(String) 
           False -> [font, ..fonts]
         }
       }
+      ContentRectangle(_) -> fonts
     }
   })
   |> list.reverse
@@ -426,53 +494,127 @@ fn render_content_stream(
   default_text_size: Float,
 ) -> BitArray {
   let fonts = collect_fonts(contents, default_font)
-  list.fold(contents, <<"BT\n">>, fn(stream, content) {
+  list.fold(contents, <<>>, fn(stream, content) {
     case content {
-      ContentText(Text(content:, x:, y:, font:, size:, colour:)) -> {
-        let font = option.unwrap(font, default_font)
-        let size = option.unwrap(size, default_text_size)
-        let font_index = case
-          list.index_map(fonts, fn(f, i) { #(f, i) })
-          |> list.find(fn(p) { p.0 == font })
-        {
-          Ok(#(_, i)) -> i
-          Error(_) -> 0
-        }
-        let font_key = "/F" <> int.to_string(font_index + 1)
-        let stream = case colour {
-          Some(Rgb(r, g, b)) -> <<
-            stream:bits,
-            render_float(r):utf8,
-            " ",
-            render_float(g):utf8,
-            " ",
-            render_float(b):utf8,
-            " rg\n",
-          >>
-          None -> stream
-        }
-        <<
-          stream:bits,
-          font_key:utf8,
-          " ",
-          render_float(size):utf8,
-          " Tf\n1 0 0 1 ",
-          render_float(x):utf8,
-          " ",
-          render_float(y):utf8,
-          " Tm\n(",
-          content:utf8,
-          ") Tj\n",
-        >>
-      }
+      ContentText(text) ->
+        render_text(stream, text, fonts, default_font, default_text_size)
+      ContentRectangle(rect) -> render_rectangle(stream, rect)
     }
   })
-  |> fn(stream) { <<stream:bits, "ET\n">> }
 }
 
-//
-// IR to PDF
-//
+fn render_text(
+  stream: BitArray,
+  text: Text,
+  fonts: List(String),
+  default_font: String,
+  default_text_size: Float,
+) -> BitArray {
+  let Text(content:, x:, y:, font:, size:, colour:) = text
+  let font = option.unwrap(font, default_font)
+  let size = option.unwrap(size, default_text_size)
+  let font_index = case
+    list.index_map(fonts, fn(f, i) { #(f, i) })
+    |> list.find(fn(p) { p.0 == font })
+  {
+    Ok(#(_, i)) -> i
+    Error(_) -> 0
+  }
+  let font_key = "/F" <> int.to_string(font_index + 1)
+  let stream = <<stream:bits, "BT\n">>
+  let stream = case colour {
+    Some(Rgb(r, g, b)) -> <<
+      stream:bits,
+      render_float(r):utf8,
+      " ",
+      render_float(g):utf8,
+      " ",
+      render_float(b):utf8,
+      " rg\n",
+    >>
+    None -> stream
+  }
+  <<
+    stream:bits,
+    font_key:utf8,
+    " ",
+    render_float(size):utf8,
+    " Tf\n1 0 0 1 ",
+    render_float(x):utf8,
+    " ",
+    render_float(y):utf8,
+    " Tm\n(",
+    content:utf8,
+    ") Tj\nET\n",
+  >>
+}
+
+fn render_rectangle(stream: BitArray, rect: Rectangle) -> BitArray {
+  let Rectangle(
+    x:,
+    y:,
+    width:,
+    height:,
+    fill_colour:,
+    stroke_colour:,
+    line_width:,
+  ) = rect
+
+  // Set line width if specified
+  let stream = case line_width {
+    Some(w) -> <<stream:bits, render_float(w):utf8, " w\n">>
+    None -> stream
+  }
+
+  // Set fill colour if specified
+  let stream = case fill_colour {
+    Some(Rgb(r, g, b)) -> <<
+      stream:bits,
+      render_float(r):utf8,
+      " ",
+      render_float(g):utf8,
+      " ",
+      render_float(b):utf8,
+      " rg\n",
+    >>
+    None -> stream
+  }
+
+  // Set stroke colour if specified
+  let stream = case stroke_colour {
+    Some(Rgb(r, g, b)) -> <<
+      stream:bits,
+      render_float(r):utf8,
+      " ",
+      render_float(g):utf8,
+      " ",
+      render_float(b):utf8,
+      " RG\n",
+    >>
+    None -> stream
+  }
+
+  // Draw the rectangle path
+  let stream = <<
+    stream:bits,
+    render_float(x):utf8,
+    " ",
+    render_float(y):utf8,
+    " ",
+    render_float(width):utf8,
+    " ",
+    render_float(height):utf8,
+    " re\n",
+  >>
+
+  // Fill and/or stroke
+  case fill_colour, stroke_colour {
+    Some(_), Some(_) -> <<stream:bits, "B\n">>
+    Some(_), None -> <<stream:bits, "f\n">>
+    None, Some(_) -> <<stream:bits, "S\n">>
+    None, None -> stream
+  }
+}
 
 fn render_pdf(objects: List(Object), info: Info) -> BitArray {
   let pdf = <<"%PDF-1.4\n">>

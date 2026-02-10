@@ -171,6 +171,37 @@ pub fn pdf_with_coloured_text_test() {
   |> birdie.snap("pdf_with_coloured_text_test")
 }
 
+pub fn pdf_with_rectangles_test() {
+  let bytes =
+    pdf.new_document()
+    |> pdf.add_page(
+      pdf.new_page()
+      |> pdf.add_rectangle(
+        pdf.rectangle(x: 72.0, y: 700.0, width: 100.0, height: 50.0)
+        |> pdf.rectangle_fill_colour(pdf.Rgb(1.0, 0.0, 0.0)),
+      )
+      |> pdf.add_rectangle(
+        pdf.rectangle(x: 72.0, y: 600.0, width: 100.0, height: 50.0)
+        |> pdf.rectangle_stroke_colour(pdf.Rgb(0.0, 0.0, 1.0))
+        |> pdf.rectangle_line_width(2.0),
+      )
+      |> pdf.add_rectangle(
+        pdf.rectangle(x: 72.0, y: 500.0, width: 100.0, height: 50.0)
+        |> pdf.rectangle_fill_colour(pdf.Rgb(1.0, 1.0, 0.0))
+        |> pdf.rectangle_stroke_colour(pdf.Rgb(0.0, 0.0, 0.0))
+        |> pdf.rectangle_line_width(3.0),
+      ),
+    )
+    |> pdf.render
+
+  let assert Ok(_) =
+    simplifile.write_bits("pdfs/pdf_with_rectangles_test.pdf", bytes)
+
+  bytes
+  |> bit_array_to_lossy_string
+  |> birdie.snap("pdf_with_rectangles_test")
+}
+
 pub fn bit_array_to_lossy_string(input: BitArray) -> String {
   lossy_string(input, "")
 }
