@@ -1,10 +1,11 @@
 import gleam/bit_array
 import gleam/io
-import gleam/option
+import gleam/option.{Some}
 import gleam/result
-import gleeunit
+import gleam/time/calendar
+import gleam/time/duration
 import paddlefish.{
-  type Object, Array, Dictionary, Float, Int, Name, Object, Reference,
+  type Object, Array, Dictionary, Info, Int, Name, Object, Reference,
 }
 
 pub fn main() -> Nil {
@@ -53,8 +54,29 @@ ET
     ]),
   ]
 
+  let info =
+    Info(
+      title: Some("Hello, Joe!"),
+      author: Some("Louis Pilfold"),
+      subject: Some("A test PDF document"),
+      keywords: Some("gleam, pdf, paddlefish"),
+      creator: Some("Paddlefish Test Suite"),
+      producer: Some("Paddlefish"),
+      creation_date: Some(#(
+        calendar.Date(2026, calendar.February, 10),
+        calendar.TimeOfDay(14, 30, 0, 0),
+        duration.minutes(0),
+      )),
+      modification_time: Some(#(
+        calendar.Date(2026, calendar.February, 10),
+        calendar.TimeOfDay(15, 45, 30, 0),
+        duration.minutes(0),
+      )),
+    )
+
   io.println(
-    bit_array.to_string(paddlefish.render_pdf(objects)) |> result.unwrap(""),
+    bit_array.to_string(paddlefish.render_pdf(objects, info))
+    |> result.unwrap(""),
   )
 
   Nil
