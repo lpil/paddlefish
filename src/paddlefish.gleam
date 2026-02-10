@@ -15,14 +15,31 @@ pub opaque type Document {
     pages: List(Page),
     default_font: String,
     default_text_size: Float,
+    default_page_size: PageSize,
   )
 }
 
 /// A single page in a PDF document.
 ///
 pub opaque type Page {
-  Page(width: Float, height: Float, contents: List(Content))
+  Page(size: option.Option(PageSize), contents: List(Content))
 }
+
+/// Dimensions of a page in points, where one point is 0.353mm.
+///
+pub type PageSize {
+  PageSize(width: Float, height: Float)
+}
+
+pub const size_a3 = PageSize(width: 842.0, height: 1191.0)
+
+pub const size_a4 = PageSize(width: 595.0, height: 842.0)
+
+pub const size_a5 = PageSize(width: 420.0, height: 595.0)
+
+pub const size_usa_letter = PageSize(width: 612.0, height: 792.0)
+
+pub const size_usa_legal = PageSize(width: 612.0, height: 1008.0)
 
 /// A piece of text to be drawn on a page.
 ///
@@ -53,12 +70,16 @@ type Info {
   )
 }
 
-/// Create a new blank page with the given dimensions in points.
+/// Create a new blank page.
 ///
-/// One point equals 1/72 of an inch.
+pub fn new_page() -> Page {
+  Page(size: None, contents: [])
+}
+
+/// Set the size of a page.
 ///
-pub fn new_page(width: Float, height: Float) -> Page {
-  Page(width:, height:, contents: [])
+pub fn page_size(page: Page, size: PageSize) -> Page {
+  Page(..page, size: Some(size))
 }
 
 /// Create a new document.
@@ -78,6 +99,7 @@ pub fn new_document() -> Document {
     pages: [],
     default_font: "Helvetica",
     default_text_size: 12.0,
+    default_page_size: size_a4,
   )
 }
 
@@ -146,6 +168,12 @@ pub fn default_font(document: Document, font: String) -> Document {
 ///
 pub fn default_text_size(document: Document, size: Float) -> Document {
   Document(..document, default_text_size: size)
+}
+
+/// Set the default page size for the document.
+///
+pub fn default_page_size(document: Document, size: PageSize) -> Document {
+  Document(..document, default_page_size: size)
 }
 
 /// Append a page to the document.
@@ -279,6 +307,7 @@ fn document_to_objects(document: Document) -> List(Object) {
             next_id,
             document.default_font,
             document.default_text_size,
+            document.default_page_size,
           )
         #(list.flatten([objects, [page_obj, content_obj], font_objs]), next_id)
       },
@@ -293,10 +322,12 @@ fn page_to_objects(
   next_id: Int,
   default_font: String,
   default_text_size: Float,
+  default_page_size: PageSize,
 ) -> #(Object, Object, List(Object), Int) {
   let content_id = next_id
   let fonts = collect_fonts(page.contents, default_font)
   let font_start_id = next_id + 1
+  let size = option.unwrap(page.size, default_page_size)
 
   let #(font_dict, font_objs, next_id) =
     list.fold(
@@ -329,7 +360,7 @@ fn page_to_objects(
       #("Parent", Reference(2)),
       #(
         "MediaBox",
-        Array([Int(0), Int(0), Float(page.width), Float(page.height)]),
+        Array([Int(0), Int(0), Float(size.width), Float(size.height)]),
       ),
       #("Resources", Dictionary([#("Font", Dictionary(font_dict))])),
       #("Contents", Reference(content_id)),
