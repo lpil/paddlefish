@@ -5,12 +5,17 @@ import gleam/list
 import gleam/option.{None, Some}
 import gleam/string
 import gleam/time/calendar
-import gleam/time/duration
+import gleam/time/timestamp
 
 /// A PDF document.
 ///
 pub opaque type Document {
-  Document(info: Info, pages: List(Page))
+  Document(
+    info: Info,
+    pages: List(Page),
+    default_font: String,
+    default_text_size: Float,
+  )
 }
 
 /// A single page in a PDF document.
@@ -19,8 +24,20 @@ pub opaque type Page {
   Page(width: Float, height: Float, contents: List(Content))
 }
 
+/// A piece of text to be drawn on a page.
+///
+pub opaque type Text {
+  Text(
+    content: String,
+    x: Float,
+    y: Float,
+    font: option.Option(String),
+    size: option.Option(Float),
+  )
+}
+
 type Content {
-  DrawText(text: String, x: Float, y: Float, font: String, size: Float)
+  ContentText(Text)
 }
 
 type Info {
@@ -31,12 +48,8 @@ type Info {
     keywords: option.Option(String),
     creator: option.Option(String),
     producer: option.Option(String),
-    creation_time: option.Option(
-      #(calendar.Date, calendar.TimeOfDay, duration.Duration),
-    ),
-    modification_time: option.Option(
-      #(calendar.Date, calendar.TimeOfDay, duration.Duration),
-    ),
+    creation_time: option.Option(timestamp.Timestamp),
+    modification_time: option.Option(timestamp.Timestamp),
   )
 }
 
@@ -63,6 +76,8 @@ pub fn new_document() -> Document {
       modification_time: None,
     ),
     pages: [],
+    default_font: "Helvetica",
+    default_text_size: 12.0,
   )
 }
 
@@ -104,34 +119,33 @@ pub fn producer(document: Document, producer: String) -> Document {
 
 /// Set the date and time when the document was created.
 ///
-/// The offset specifies the timezone as a duration from UTC.
-///
-pub fn created_at(
-  document: Document,
-  date: calendar.Date,
-  time: calendar.TimeOfDay,
-  offset: duration.Duration,
-) -> Document {
-  Document(
-    ..document,
-    info: Info(..document.info, creation_time: Some(#(date, time, offset))),
-  )
+pub fn created_at(document: Document, time: timestamp.Timestamp) -> Document {
+  Document(..document, info: Info(..document.info, creation_time: Some(time)))
 }
 
 /// Set the date and time when the document was last modified.
 ///
-/// The offset specifies the timezone as a duration from UTC.
-///
-pub fn modified_at(
-  document: Document,
-  date: calendar.Date,
-  time: calendar.TimeOfDay,
-  offset: duration.Duration,
-) -> Document {
+pub fn modified_at(document: Document, time: timestamp.Timestamp) -> Document {
   Document(
     ..document,
-    info: Info(..document.info, modification_time: Some(#(date, time, offset))),
+    info: Info(..document.info, modification_time: Some(time)),
   )
+}
+
+/// Set the default font for text in the document.
+///
+/// This font is used when text is added without specifying a font.
+///
+pub fn default_font(document: Document, font: String) -> Document {
+  Document(..document, default_font: font)
+}
+
+/// Set the default text size for the document in points.
+///
+/// This size is used when text is added without specifying a size.
+///
+pub fn default_text_size(document: Document, size: Float) -> Document {
+  Document(..document, default_text_size: size)
 }
 
 /// Append a page to the document.
@@ -148,28 +162,49 @@ pub fn add_page(document: Document, page: Page) -> Document {
   Document(..document, pages: list.append(document.pages, [page]))
 }
 
-/// Draw text on the page at the given position.
+/// Create a new text element at the given position.
 ///
 /// The position is specified as an `#(x, y)` tuple in points from the
-/// bottom-left corner of the page. The font must be the name of one of the
-/// 14 standard PDF fonts, such as `"Helvetica"` or `"Times-Roman"`.
+/// bottom-left corner of the page.
+///
+/// ## Examples
+///
+/// ```gleam
+/// text("Hello, world!", at: #(72.0, 750.0))
+/// |> font("Times-Roman")
+/// |> text_size(14.0)
+/// ```
+///
+pub fn text(content: String, at position: #(Float, Float)) -> Text {
+  Text(content:, x: position.0, y: position.1, font: None, size: None)
+}
+
+/// Set the font for a text element.
+///
+/// The font must be the name of one of the 14 standard PDF fonts, such as
+/// `"Helvetica"` or `"Times-Roman"`.
+///
+pub fn font(text: Text, font: String) -> Text {
+  Text(..text, font: Some(font))
+}
+
+/// Set the size for a text element in points.
+///
+pub fn text_size(text: Text, size: Float) -> Text {
+  Text(..text, size: Some(size))
+}
+
+/// Add a text element to the page.
 ///
 /// ## Examples
 ///
 /// ```gleam
 /// new_page(595.0, 842.0)
-/// |> draw_text("Hello, world!", at: #(72.0, 750.0), font: "Helvetica", size: 12.0)
+/// |> add_text(text("Hello, world!", at: #(72.0, 750.0)))
 /// ```
 ///
-pub fn draw_text(
-  page: Page,
-  text: String,
-  at position: #(Float, Float),
-  font font: String,
-  size size: Float,
-) -> Page {
-  let content = DrawText(text:, x: position.0, y: position.1, font:, size:)
-  Page(..page, contents: list.append(page.contents, [content]))
+pub fn add_text(page: Page, text: Text) -> Page {
+  Page(..page, contents: list.append(page.contents, [ContentText(text)]))
 }
 
 type Object {
@@ -201,7 +236,7 @@ type Value {
 /// ```gleam
 /// let page =
 ///   new_page(595.0, 842.0)
-///   |> draw_text("Hello!", at: #(72.0, 750.0), font: "Helvetica", size: 12.0)
+///   |> add_text(text("Hello!", at: #(72.0, 750.0)))
 ///
 /// new_document()
 /// |> title("My Document")
@@ -238,7 +273,13 @@ fn document_to_objects(document: Document) -> List(Object) {
         let #(objects, next_id) = acc
         let #(page, page_id) = pair
         let #(page_obj, content_obj, font_objs, next_id) =
-          page_to_objects(page, page_id, next_id)
+          page_to_objects(
+            page,
+            page_id,
+            next_id,
+            document.default_font,
+            document.default_text_size,
+          )
         #(list.flatten([objects, [page_obj, content_obj], font_objs]), next_id)
       },
     )
@@ -250,9 +291,11 @@ fn page_to_objects(
   page: Page,
   page_id: Int,
   next_id: Int,
+  default_font: String,
+  default_text_size: Float,
 ) -> #(Object, Object, List(Object), Int) {
   let content_id = next_id
-  let fonts = collect_fonts(page.contents)
+  let fonts = collect_fonts(page.contents, default_font)
   let font_start_id = next_id + 1
 
   let #(font_dict, font_objs, next_id) =
@@ -277,7 +320,8 @@ fn page_to_objects(
       },
     )
 
-  let content_stream = render_content_stream(page.contents)
+  let content_stream =
+    render_content_stream(page.contents, default_font, default_text_size)
 
   let page_obj =
     Object(page_id, None, [
@@ -296,24 +340,32 @@ fn page_to_objects(
   #(page_obj, content_obj, list.reverse(font_objs), next_id)
 }
 
-fn collect_fonts(contents: List(Content)) -> List(String) {
+fn collect_fonts(contents: List(Content), default_font: String) -> List(String) {
   list.fold(contents, [], fn(fonts, content) {
     case content {
-      DrawText(font:, ..) ->
+      ContentText(Text(font:, ..)) -> {
+        let font = option.unwrap(font, default_font)
         case list.contains(fonts, font) {
           True -> fonts
           False -> [font, ..fonts]
         }
+      }
     }
   })
   |> list.reverse
 }
 
-fn render_content_stream(contents: List(Content)) -> BitArray {
-  let fonts = collect_fonts(contents)
+fn render_content_stream(
+  contents: List(Content),
+  default_font: String,
+  default_text_size: Float,
+) -> BitArray {
+  let fonts = collect_fonts(contents, default_font)
   list.fold(contents, <<"BT\n">>, fn(stream, content) {
     case content {
-      DrawText(text:, x:, y:, font:, size:) -> {
+      ContentText(Text(content:, x:, y:, font:, size:)) -> {
+        let font = option.unwrap(font, default_font)
+        let size = option.unwrap(size, default_text_size)
         let font_index = case
           list.index_map(fonts, fn(f, i) { #(f, i) })
           |> list.find(fn(p) { p.0 == font })
@@ -332,7 +384,7 @@ fn render_content_stream(contents: List(Content)) -> BitArray {
           " ",
           render_float(y):utf8,
           " Td\n(",
-          text:utf8,
+          content:utf8,
           ") Tj\n",
         >>
       }
@@ -521,36 +573,15 @@ fn optional_property(
   }
 }
 
-fn format_pdf_date(
-  datetime: #(calendar.Date, calendar.TimeOfDay, duration.Duration),
-) -> String {
-  let #(date, time, offset) = datetime
-  let offset_minutes = float.truncate(duration.to_seconds(offset)) / 60
-
-  let tz = case offset_minutes {
-    0 -> "Z"
-    _ -> {
-      let sign = case offset_minutes >= 0 {
-        True -> "+"
-        False -> "-"
-      }
-      let abs_minutes = int.absolute_value(offset_minutes)
-      let hours = abs_minutes / 60
-      let mins = abs_minutes % 60
-      sign
-      <> string.pad_start(int.to_string(hours), 2, "0")
-      <> "'"
-      <> string.pad_start(int.to_string(mins), 2, "0")
-      <> "'"
-    }
-  }
+fn format_pdf_date(time: timestamp.Timestamp) -> String {
+  let #(date, time_of_day) = timestamp.to_calendar(time, calendar.utc_offset)
 
   "D:"
   <> int.to_string(date.year)
   <> string.pad_start(int.to_string(calendar.month_to_int(date.month)), 2, "0")
   <> string.pad_start(int.to_string(date.day), 2, "0")
-  <> string.pad_start(int.to_string(time.hours), 2, "0")
-  <> string.pad_start(int.to_string(time.minutes), 2, "0")
-  <> string.pad_start(int.to_string(time.seconds), 2, "0")
-  <> tz
+  <> string.pad_start(int.to_string(time_of_day.hours), 2, "0")
+  <> string.pad_start(int.to_string(time_of_day.minutes), 2, "0")
+  <> string.pad_start(int.to_string(time_of_day.seconds), 2, "0")
+  <> "Z"
 }

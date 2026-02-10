@@ -1,44 +1,76 @@
 import birdie
 import gleam/bit_array
 import gleam/crypto
-import gleam/time/calendar
-import gleam/time/duration
+import gleam/time/timestamp
 import gleeunit
 import paddlefish as pdf
+import simplifile
 
 pub fn main() -> Nil {
   gleeunit.main()
 }
 
-pub fn pdf_with_info_test() {
-  let page =
-    pdf.new_page(200.0, 200.0)
-    |> pdf.draw_text(
-      "This PDF was created with Gleam",
-      at: #(20.0, 20.0),
-      font: "Helvetica",
-      size: 10.0,
+pub fn pdf_with_defaults_test() {
+  let bytes =
+    pdf.new_document()
+    |> pdf.add_page(
+      pdf.new_page(200.0, 200.0)
+      |> pdf.add_text(pdf.text("Hello using defaults", at: #(20.0, 20.0))),
     )
+    |> pdf.render
 
-  pdf.new_document()
-  |> pdf.title("Hello, Joe!")
-  |> pdf.author("Louis Pilfold")
-  |> pdf.subject("A test PDF document")
-  |> pdf.keywords("gleam, pdf, paddlefish")
-  |> pdf.creator("Paddlefish Test Suite")
-  |> pdf.producer("Paddlefish")
-  |> pdf.created_at(
-    calendar.Date(2026, calendar.February, 10),
-    calendar.TimeOfDay(14, 30, 0, 0),
-    duration.minutes(0),
-  )
-  |> pdf.modified_at(
-    calendar.Date(2026, calendar.February, 10),
-    calendar.TimeOfDay(15, 45, 30, 0),
-    duration.minutes(0),
-  )
-  |> pdf.add_page(page)
-  |> pdf.render
+  let assert Ok(_) =
+    simplifile.write_bits("pdfs/pdf_with_defaults_test.pdf", bytes)
+
+  bytes
+  |> bit_array_to_lossy_string
+  |> birdie.snap("pdf_with_defaults_test")
+}
+
+pub fn pdf_with_custom_text_defaults_test() {
+  let bytes =
+    pdf.new_document()
+    |> pdf.default_font("Times-Roman")
+    |> pdf.default_text_size(24.0)
+    |> pdf.add_page(
+      pdf.new_page(200.0, 200.0)
+      |> pdf.add_text(pdf.text("Using custom defaults", at: #(20.0, 100.0))),
+    )
+    |> pdf.render
+
+  let assert Ok(_) =
+    simplifile.write_bits("pdfs/pdf_with_custom_text_defaults_test.pdf", bytes)
+
+  bytes
+  |> bit_array_to_lossy_string
+  |> birdie.snap("pdf_with_custom_text_defaults_test")
+}
+
+pub fn pdf_with_info_test() {
+  let bytes =
+    pdf.new_document()
+    |> pdf.title("Hello, Joe!")
+    |> pdf.author("Louis Pilfold")
+    |> pdf.subject("A test PDF document")
+    |> pdf.keywords("gleam, pdf, paddlefish")
+    |> pdf.creator("Paddlefish Test Suite")
+    |> pdf.producer("Paddlefish")
+    |> pdf.created_at(timestamp.from_unix_seconds(1_770_733_800))
+    |> pdf.modified_at(timestamp.from_unix_seconds(1_770_738_330))
+    |> pdf.add_page(
+      pdf.new_page(200.0, 200.0)
+      |> pdf.add_text(
+        pdf.text("This PDF was created with Gleam", at: #(20.0, 20.0))
+        |> pdf.font("Helvetica")
+        |> pdf.text_size(10.0),
+      ),
+    )
+    |> pdf.render
+
+  let assert Ok(_) =
+    simplifile.write_bits("pdfs/pdf_with_info_test.pdf", bytes)
+
+  bytes
   |> bit_array_to_lossy_string
   |> birdie.snap("pdf_with_info_test")
 }
