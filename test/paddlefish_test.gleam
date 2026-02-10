@@ -1,14 +1,19 @@
+import birdie
 import gleam/bit_array
-import gleam/io
+import gleam/crypto
 import gleam/option.{Some}
-import gleam/result
 import gleam/time/calendar
 import gleam/time/duration
-import paddlefish.{
+import gleeunit
+import paddlefish/pdf.{
   type Object, Array, Dictionary, Info, Int, Name, Object, Reference,
 }
 
 pub fn main() -> Nil {
+  gleeunit.main()
+}
+
+pub fn pdf_with_info_test() {
   let objects: List(Object) = [
     Object(1, option.None, [
       #("Type", Name("Catalog")),
@@ -74,10 +79,36 @@ ET
       )),
     )
 
-  io.println(
-    bit_array.to_string(paddlefish.render_pdf(objects, info))
-    |> result.unwrap(""),
-  )
+  pdf.render(objects, info)
+  |> bit_array_to_lossy_string
+  |> birdie.snap("pdf_with_info_test")
+}
 
-  Nil
+pub fn bit_array_to_lossy_string(input: BitArray) -> String {
+  lossy_string(input, "")
+}
+
+fn lossy_string(input: BitArray, output: String) -> String {
+  case input {
+    <<codepoint:utf8_codepoint, input:bytes>> -> {
+      let assert Ok(new) = bit_array.to_string(<<codepoint:utf8_codepoint>>)
+      lossy_string(input, output <> new)
+    }
+    <<first, input:bytes>> -> {
+      let #(data, input) = take_non_utf8(input, <<first>>)
+      let hash =
+        crypto.hash(crypto.Sha256, data) |> bit_array.base64_encode(False)
+      lossy_string(input, output <> "{binary:" <> hash <> "}")
+    }
+    <<>> -> output
+    _ -> panic as "non-byte aligned string"
+  }
+}
+
+fn take_non_utf8(input: BitArray, output: BitArray) -> #(BitArray, BitArray) {
+  case input {
+    <<_:utf8_codepoint, _:bytes>> -> #(output, input)
+    <<data, input:bytes>> -> take_non_utf8(input, <<output:bits, data>>)
+    _ -> panic as "non-byte aligned string"
+  }
 }

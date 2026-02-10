@@ -114,7 +114,7 @@ pub type Value {
 
 /// Renders a list of `Object` values into a complete PDF binary.
 /// Assumes object 1 is the /Root catalog.
-pub fn render_pdf(objects: List(Object), info: Info) -> BitArray {
+pub fn render(objects: List(Object), info: Info) -> BitArray {
   let pdf = <<"%PDF-1.4\n">>
   let info_id = list.length(objects) + 1
   let #(pdf, offsets) = render_objects(pdf, objects, [])

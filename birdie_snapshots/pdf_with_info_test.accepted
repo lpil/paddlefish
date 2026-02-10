@@ -1,0 +1,76 @@
+---
+version: 1.5.4
+title: pdf_with_info_test
+file: ./test/paddlefish_test.gleam
+test_name: pdf_with_info_test
+---
+%PDF-1.4
+1 0 obj
+<</Type /Catalog
+/Pages 2 0 R
+>>
+endobj
+2 0 obj
+<</Type /Pages
+/Kids [3 0 R ]
+/Count 1
+>>
+endobj
+3 0 obj
+<</Type /Page
+/Parent 2 0 R
+/MediaBox [0 0 200 200 ]
+/Resources <</Font <</F1 5 0 R
+>>
+>>
+/Contents 4 0 R
+>>
+endobj
+4 0 obj
+<</Length 62
+>>
+stream
+BT
+/F1 10 Tf
+20 20 Td
+(This PDF was created with Gleam) Tj
+ET
+
+endstream
+endobj
+5 0 obj
+<</Type /Font
+/Subtype /Type1
+/BaseFont /Helvetica
+>>
+endobj
+6 0 obj
+<</ModDate (D:20260210154530Z)
+/CreationDate (D:20260210143000Z)
+/Producer (Paddlefish)
+/Creator (Paddlefish Test Suite)
+/Keywords (gleam, pdf, paddlefish)
+/Subject (A test PDF document)
+/Author (Louis Pilfold)
+/Title (Hello, Joe!)
+>>
+endobj
+xref
+0 7
+0000000000 65535 f 
+0000000009 00000 n 
+0000000057 00000 n 
+0000000114 00000 n 
+0000000238 00000 n 
+0000000349 00000 n 
+0000000418 00000 n 
+trailer
+<<
+/Size 7
+/Root 1 0 R
+/Info 6 0 R
+>>
+startxref
+668
+%%EOF
+
