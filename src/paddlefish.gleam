@@ -98,9 +98,42 @@ pub opaque type Rectangle {
   )
 }
 
+/// An open path made up of lines.
+///
+pub opaque type Path {
+  Path(
+    start_x: Float,
+    start_y: Float,
+    operations: List(PathOperation),
+    stroke_colour: option.Option(Colour),
+    line_width: option.Option(Float),
+  )
+}
+
+/// A closed shape made from one or more paths.
+///
+pub opaque type Shape {
+  Shape(
+    subpaths: List(Subpath),
+    fill_colour: option.Option(Colour),
+    stroke_colour: option.Option(Colour),
+    line_width: option.Option(Float),
+  )
+}
+
+type Subpath {
+  Subpath(start_x: Float, start_y: Float, operations: List(PathOperation))
+}
+
+type PathOperation {
+  LineTo(x: Float, y: Float)
+}
+
 type Content {
   ContentText(Text)
   ContentRectangle(Rectangle)
+  ContentPath(Path)
+  ContentShape(Shape)
 }
 
 type Info {
@@ -337,6 +370,92 @@ pub fn add_rectangle(page: Page, rectangle: Rectangle) -> Page {
   )
 }
 
+/// Create a new path starting at the given point.
+///
+pub fn path(x x: Float, y y: Float) -> Path {
+  Path(
+    start_x: x,
+    start_y: y,
+    operations: [],
+    stroke_colour: None,
+    line_width: None,
+  )
+}
+
+/// Add a line to the path.
+///
+pub fn line_to(path: Path, x x: Float, y y: Float) -> Path {
+  Path(..path, operations: list.append(path.operations, [LineTo(x, y)]))
+}
+
+/// Set the stroke colour for a path.
+///
+pub fn path_stroke_colour(path: Path, colour: Colour) -> Path {
+  Path(..path, stroke_colour: Some(colour))
+}
+
+/// Set the line width for a path in points.
+///
+pub fn path_line_width(path: Path, width: Float) -> Path {
+  Path(..path, line_width: Some(width))
+}
+
+/// Add a path to the page.
+///
+pub fn add_path(page: Page, path: Path) -> Page {
+  Page(..page, contents: list.append(page.contents, [ContentPath(path)]))
+}
+
+/// Close a path to create a shape.
+///
+/// The path's stroke colour and line width are not inherited. Use
+/// `shape_stroke_colour` and `shape_line_width` to set them on the shape.
+///
+pub fn shape(path: Path) -> Shape {
+  let subpath = Subpath(path.start_x, path.start_y, path.operations)
+  Shape(
+    subpaths: [subpath],
+    fill_colour: None,
+    stroke_colour: None,
+    line_width: None,
+  )
+}
+
+/// Create a compound shape from multiple paths.
+///
+/// The paths' stroke colours and line widths are not inherited. Use
+/// `shape_stroke_colour` and `shape_line_width` to set them on the shape.
+///
+pub fn compound_shape(paths: List(Path)) -> Shape {
+  let subpaths =
+    list.map(paths, fn(p) { Subpath(p.start_x, p.start_y, p.operations) })
+  Shape(subpaths:, fill_colour: None, stroke_colour: None, line_width: None)
+}
+
+/// Set the fill colour for a shape.
+///
+pub fn shape_fill_colour(shape: Shape, colour: Colour) -> Shape {
+  Shape(..shape, fill_colour: Some(colour))
+}
+
+/// Set the stroke colour for a shape.
+///
+pub fn shape_stroke_colour(shape: Shape, colour: Colour) -> Shape {
+  Shape(..shape, stroke_colour: Some(colour))
+}
+
+/// Set the line width for a shape in points.
+///
+pub fn shape_line_width(shape: Shape, width: Float) -> Shape {
+  Shape(..shape, line_width: Some(width))
+}
+
+/// Add a shape to the page.
+///
+pub fn add_shape(page: Page, shape: Shape) -> Page {
+  Page(..page, contents: list.append(page.contents, [ContentShape(shape)]))
+}
+
 type Object {
   Object(
     id: Int,
@@ -483,6 +602,8 @@ fn collect_fonts(contents: List(Content), default_font: String) -> List(String) 
         }
       }
       ContentRectangle(_) -> fonts
+      ContentPath(_) -> fonts
+      ContentShape(_) -> fonts
     }
   })
   |> list.reverse
@@ -499,6 +620,8 @@ fn render_content_stream(
       ContentText(text) ->
         render_text(stream, text, fonts, default_font, default_text_size)
       ContentRectangle(rect) -> render_rectangle(stream, rect)
+      ContentPath(path) -> render_path(stream, path)
+      ContentShape(shape) -> render_shape(stream, shape)
     }
   })
 }
@@ -611,6 +734,134 @@ fn render_rectangle(stream: BitArray, rect: Rectangle) -> BitArray {
   case fill_colour, stroke_colour {
     Some(_), Some(_) -> <<stream:bits, "B\n">>
     Some(_), None -> <<stream:bits, "f\n">>
+    None, Some(_) -> <<stream:bits, "S\n">>
+    None, None -> stream
+  }
+}
+
+fn render_path(stream: BitArray, path: Path) -> BitArray {
+  let Path(start_x:, start_y:, operations:, stroke_colour:, line_width:) = path
+
+  // Set line width if specified
+  let stream = case line_width {
+    Some(w) -> <<stream:bits, render_float(w):utf8, " w\n">>
+    None -> stream
+  }
+
+  // Set stroke colour if specified
+  let stream = case stroke_colour {
+    Some(Rgb(r, g, b)) -> <<
+      stream:bits,
+      render_float(r):utf8,
+      " ",
+      render_float(g):utf8,
+      " ",
+      render_float(b):utf8,
+      " RG\n",
+    >>
+    None -> stream
+  }
+
+  // Move to start
+  let stream = <<
+    stream:bits,
+    render_float(start_x):utf8,
+    " ",
+    render_float(start_y):utf8,
+    " m\n",
+  >>
+
+  // Draw lines
+  let stream =
+    list.fold(operations, stream, fn(stream, op) {
+      case op {
+        LineTo(x, y) -> <<
+          stream:bits,
+          render_float(x):utf8,
+          " ",
+          render_float(y):utf8,
+          " l\n",
+        >>
+      }
+    })
+
+  // Stroke the path
+  <<stream:bits, "S\n">>
+}
+
+fn render_shape(stream: BitArray, shape: Shape) -> BitArray {
+  let Shape(subpaths:, fill_colour:, stroke_colour:, line_width:) = shape
+
+  // Set line width if specified
+  let stream = case line_width {
+    Some(w) -> <<stream:bits, render_float(w):utf8, " w\n">>
+    None -> stream
+  }
+
+  // Set fill colour if specified
+  let stream = case fill_colour {
+    Some(Rgb(r, g, b)) -> <<
+      stream:bits,
+      render_float(r):utf8,
+      " ",
+      render_float(g):utf8,
+      " ",
+      render_float(b):utf8,
+      " rg\n",
+    >>
+    None -> stream
+  }
+
+  // Set stroke colour if specified
+  let stream = case stroke_colour {
+    Some(Rgb(r, g, b)) -> <<
+      stream:bits,
+      render_float(r):utf8,
+      " ",
+      render_float(g):utf8,
+      " ",
+      render_float(b):utf8,
+      " RG\n",
+    >>
+    None -> stream
+  }
+
+  // Draw each subpath
+  let stream =
+    list.fold(subpaths, stream, fn(stream, subpath) {
+      let Subpath(start_x, start_y, operations) = subpath
+
+      // Move to start
+      let stream = <<
+        stream:bits,
+        render_float(start_x):utf8,
+        " ",
+        render_float(start_y):utf8,
+        " m\n",
+      >>
+
+      // Draw lines
+      let stream =
+        list.fold(operations, stream, fn(stream, op) {
+          case op {
+            LineTo(x, y) -> <<
+              stream:bits,
+              render_float(x):utf8,
+              " ",
+              render_float(y):utf8,
+              " l\n",
+            >>
+          }
+        })
+
+      // Close subpath
+      <<stream:bits, "h\n">>
+    })
+
+  // Fill and/or stroke (using even-odd rule for fill)
+  case fill_colour, stroke_colour {
+    Some(_), Some(_) -> <<stream:bits, "B*\n">>
+    Some(_), None -> <<stream:bits, "f*\n">>
     None, Some(_) -> <<stream:bits, "S\n">>
     None, None -> stream
   }

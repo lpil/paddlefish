@@ -171,6 +171,137 @@ pub fn pdf_with_coloured_text_test() {
   |> birdie.snap("pdf_with_coloured_text_test")
 }
 
+pub fn pdf_with_zig_zag_line_test() {
+  let bytes =
+    pdf.new_document()
+    |> pdf.add_page(
+      pdf.new_page()
+      |> pdf.add_path(
+        pdf.path(x: 72.0, y: 700.0)
+        |> pdf.line_to(x: 122.0, y: 750.0)
+        |> pdf.line_to(x: 172.0, y: 700.0)
+        |> pdf.line_to(x: 222.0, y: 750.0)
+        |> pdf.line_to(x: 272.0, y: 700.0)
+        |> pdf.path_stroke_colour(pdf.Rgb(1.0, 0.4, 0.7))
+        |> pdf.path_line_width(2.0),
+      ),
+    )
+    |> pdf.render
+
+  let assert Ok(_) =
+    simplifile.write_bits("pdfs/pdf_with_zig_zag_line_test.pdf", bytes)
+
+  bytes
+  |> bit_array_to_lossy_string
+  |> birdie.snap("pdf_with_zig_zag_line_test")
+}
+
+pub fn pdf_with_triangle_test() {
+  let bytes =
+    pdf.new_document()
+    |> pdf.add_page(
+      pdf.new_page()
+      |> pdf.add_shape(
+        pdf.path(x: 72.0, y: 500.0)
+        |> pdf.line_to(x: 272.0, y: 500.0)
+        |> pdf.line_to(x: 172.0, y: 700.0)
+        |> pdf.shape
+        |> pdf.shape_fill_colour(pdf.Rgb(0.4, 0.8, 0.9))
+        |> pdf.shape_stroke_colour(pdf.Rgb(0.0, 0.5, 0.6))
+        |> pdf.shape_line_width(2.0),
+      ),
+    )
+    |> pdf.render
+
+  let assert Ok(_) =
+    simplifile.write_bits("pdfs/pdf_with_triangle_test.pdf", bytes)
+
+  bytes
+  |> bit_array_to_lossy_string
+  |> birdie.snap("pdf_with_triangle_test")
+}
+
+pub fn pdf_with_triangle_donut_test() {
+  let outer =
+    pdf.path(x: 72.0, y: 400.0)
+    |> pdf.line_to(x: 372.0, y: 400.0)
+    |> pdf.line_to(x: 222.0, y: 700.0)
+
+  let inner =
+    pdf.path(x: 172.0, y: 450.0)
+    |> pdf.line_to(x: 272.0, y: 450.0)
+    |> pdf.line_to(x: 222.0, y: 550.0)
+
+  let bytes =
+    pdf.new_document()
+    |> pdf.add_page(
+      pdf.new_page()
+      |> pdf.add_shape(
+        pdf.compound_shape([outer, inner])
+        |> pdf.shape_fill_colour(pdf.Rgb(0.6, 0.4, 0.8))
+        |> pdf.shape_stroke_colour(pdf.Rgb(0.3, 0.1, 0.5))
+        |> pdf.shape_line_width(2.0),
+      ),
+    )
+    |> pdf.render
+
+  let assert Ok(_) =
+    simplifile.write_bits("pdfs/pdf_with_triangle_donut_test.pdf", bytes)
+
+  bytes
+  |> bit_array_to_lossy_string
+  |> birdie.snap("pdf_with_triangle_donut_test")
+}
+
+pub fn pdf_with_fill_only_shape_test() {
+  let bytes =
+    pdf.new_document()
+    |> pdf.add_page(
+      pdf.new_page()
+      |> pdf.add_shape(
+        pdf.path(x: 100.0, y: 500.0)
+        |> pdf.line_to(x: 300.0, y: 500.0)
+        |> pdf.line_to(x: 300.0, y: 700.0)
+        |> pdf.line_to(x: 100.0, y: 700.0)
+        |> pdf.shape
+        |> pdf.shape_fill_colour(pdf.Rgb(0.2, 0.6, 0.4)),
+      ),
+    )
+    |> pdf.render
+
+  let assert Ok(_) =
+    simplifile.write_bits("pdfs/pdf_with_fill_only_shape_test.pdf", bytes)
+
+  bytes
+  |> bit_array_to_lossy_string
+  |> birdie.snap("pdf_with_fill_only_shape_test")
+}
+
+pub fn pdf_with_thick_stroke_shape_test() {
+  let bytes =
+    pdf.new_document()
+    |> pdf.add_page(
+      pdf.new_page()
+      |> pdf.add_shape(
+        pdf.path(x: 100.0, y: 500.0)
+        |> pdf.line_to(x: 300.0, y: 500.0)
+        |> pdf.line_to(x: 200.0, y: 700.0)
+        |> pdf.shape
+        |> pdf.shape_fill_colour(pdf.Rgb(1.0, 0.9, 0.6))
+        |> pdf.shape_stroke_colour(pdf.Rgb(0.8, 0.4, 0.0))
+        |> pdf.shape_line_width(15.0),
+      ),
+    )
+    |> pdf.render
+
+  let assert Ok(_) =
+    simplifile.write_bits("pdfs/pdf_with_thick_stroke_shape_test.pdf", bytes)
+
+  bytes
+  |> bit_array_to_lossy_string
+  |> birdie.snap("pdf_with_thick_stroke_shape_test")
+}
+
 pub fn pdf_with_rectangles_test() {
   let bytes =
     pdf.new_document()
