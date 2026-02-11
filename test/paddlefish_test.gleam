@@ -333,6 +333,53 @@ pub fn pdf_with_rectangles_test() {
   |> birdie.snap("pdf_with_rectangles_test")
 }
 
+pub fn pdf_with_special_characters_test() {
+  let bytes =
+    pdf.new_document()
+    |> pdf.add_page(
+      pdf.new_page()
+      // WinAnsi special characters (mapped from higher Unicode)
+      |> pdf.add_text(
+        pdf.text("Euro: €  Quotes: \"curly\" 'single'", x: 72.0, y: 750.0),
+      )
+      |> pdf.add_text(
+        pdf.text("Dashes: – em — and ellipsis…", x: 72.0, y: 720.0),
+      )
+      |> pdf.add_text(
+        pdf.text("Symbols: † ‡ • ‰ ™", x: 72.0, y: 690.0),
+      )
+      |> pdf.add_text(
+        pdf.text("Letters: Œ œ Š š Ž ž Ÿ ƒ", x: 72.0, y: 660.0),
+      )
+      // Latin-1 Supplement (directly mapped)
+      |> pdf.add_text(
+        pdf.text("Accents: é à ü ñ ç ø å æ", x: 72.0, y: 630.0),
+      )
+      |> pdf.add_text(
+        pdf.text("Currency: £ ¥ ¢ © ® ° ±", x: 72.0, y: 600.0),
+      )
+      // Emoji - not in WinAnsi, will be replaced with ?
+      |> pdf.add_text(
+        pdf.text("Emoji: 🎉 → ?", x: 72.0, y: 550.0),
+      )
+      // Other unsupported scripts
+      |> pdf.add_text(
+        pdf.text("Greek: Ω → ?", x: 72.0, y: 520.0),
+      )
+      |> pdf.add_text(
+        pdf.text("Cyrillic: Д → ?", x: 72.0, y: 490.0),
+      ),
+    )
+    |> pdf.render
+
+  let assert Ok(_) =
+    simplifile.write_bits("pdfs/pdf_with_special_characters_test.pdf", bytes)
+
+  bytes
+  |> bit_array_to_lossy_string
+  |> birdie.snap("pdf_with_special_characters_test")
+}
+
 pub fn bit_array_to_lossy_string(input: BitArray) -> String {
   lossy_string(input, "")
 }

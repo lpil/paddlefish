@@ -657,6 +657,7 @@ fn render_text(
     >>
     None -> stream
   }
+  let encoded_content = utf8_to_win_ansi(content)
   <<
     stream:bits,
     font_key:utf8,
@@ -667,7 +668,7 @@ fn render_text(
     " ",
     render_float(y):utf8,
     " Tm\n(",
-    content:utf8,
+    encoded_content:bits,
     ") Tj\nET\n",
   >>
 }
@@ -972,6 +973,65 @@ fn render_float(f: Float) -> String {
   case int.to_float(truncated) == f {
     True -> int.to_string(truncated)
     False -> float.to_string(f)
+  }
+}
+
+/// Convert UTF-8 text to WinAnsiEncoding for PDF standard fonts.
+///
+/// PDF's 14 standard fonts (Helvetica, Times-Roman, Courier, Symbol, and
+/// ZapfDingbats families) use WinAnsiEncoding, which is based on Windows-1252.
+/// This encoding supports ASCII, Latin-1 Supplement (accented characters for
+/// Western European languages), and some additional characters like curly
+/// quotes, em-dashes, and the Euro sign.
+///
+/// Characters outside this encoding (such as Cyrillic, Greek, Chinese, etc.)
+/// are replaced with "?". To display these characters, you would need to embed
+/// a TrueType or OpenType font that supports them, which is not yet implemented.
+///
+fn utf8_to_win_ansi(text: String) -> BitArray {
+  text
+  |> string.to_utf_codepoints
+  |> list.map(codepoint_to_win_ansi)
+  |> bit_array.concat
+}
+
+fn codepoint_to_win_ansi(codepoint: UtfCodepoint) -> BitArray {
+  let code = string.utf_codepoint_to_int(codepoint)
+  case code {
+    // ASCII range - same in both encodings
+    c if c >= 0 && c <= 127 -> <<c>>
+    // Latin-1 Supplement (U+00A0 to U+00FF) - maps directly
+    c if c >= 160 && c <= 255 -> <<c>>
+    // Special WinAnsi mappings for characters outside Latin-1
+    0x20AC -> <<0x80>>  // €
+    0x201A -> <<0x82>>  // ‚
+    0x0192 -> <<0x83>>  // ƒ
+    0x201E -> <<0x84>>  // „
+    0x2026 -> <<0x85>>  // …
+    0x2020 -> <<0x86>>  // †
+    0x2021 -> <<0x87>>  // ‡
+    0x02C6 -> <<0x88>>  // ˆ
+    0x2030 -> <<0x89>>  // ‰
+    0x0160 -> <<0x8A>>  // Š
+    0x2039 -> <<0x8B>>  // ‹
+    0x0152 -> <<0x8C>>  // Œ
+    0x017D -> <<0x8E>>  // Ž
+    0x2018 -> <<0x91>>  // '
+    0x2019 -> <<0x92>>  // '
+    0x201C -> <<0x93>>  // "
+    0x201D -> <<0x94>>  // "
+    0x2022 -> <<0x95>>  // •
+    0x2013 -> <<0x96>>  // –
+    0x2014 -> <<0x97>>  // —
+    0x02DC -> <<0x98>>  // ˜
+    0x2122 -> <<0x99>>  // ™
+    0x0161 -> <<0x9A>>  // š
+    0x203A -> <<0x9B>>  // ›
+    0x0153 -> <<0x9C>>  // œ
+    0x017E -> <<0x9E>>  // ž
+    0x0178 -> <<0x9F>>  // Ÿ
+    // Fallback: use ? for unsupported characters
+    _ -> <<"?">>
   }
 }
 
