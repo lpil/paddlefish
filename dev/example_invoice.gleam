@@ -13,13 +13,9 @@ pub fn main() {
   let page =
     pdf.new_page()
     // Header bar
-    |> pdf.add_shape(
-      pdf.path(x: 0.0, y: 780.0)
-      |> pdf.line(x: 595.0, y: 780.0)
-      |> pdf.line(x: 595.0, y: 842.0)
-      |> pdf.line(x: 0.0, y: 842.0)
-      |> pdf.shape
-      |> pdf.shape_fill_colour(pink),
+    |> pdf.add_rectangle(
+      pdf.rectangle(x: 0.0, y: 780.0, width: pdf.size_a4.width, height: 62.0)
+      |> pdf.rectangle_fill_colour(pink),
     )
     // Company name
     |> pdf.add_text(
@@ -141,29 +137,13 @@ fn table_row(
   text3: String,
   text4: String,
 ) -> pdf.Page {
-  let page =
-    page
-    // Table header background
-    |> pdf.add_rectangle(
-      pdf.rectangle(x: 50.0, y:, width: 495.0, height: 25.0)
-      |> pdf.rectangle_fill_colour(background),
-    )
-    // Table header text
-    |> pdf.add_text(
-      pdf.text(text1, x: 60.0, y: y +. 7.0)
-      |> pdf.font(font),
-    )
-    |> pdf.add_text(
-      pdf.text(text2, x: 300.0, y: y +. 7.0)
-      |> pdf.font(font),
-    )
-    |> pdf.add_text(
-      pdf.text(text3, x: 380.0, y: y +. 7.0)
-      |> pdf.font(font),
-    )
-    |> pdf.add_text(
-      pdf.text(text4, x: 480.0, y: y +. 7.0)
-      |> pdf.font(font),
-    )
   page
+  |> pdf.add_rectangle(
+    pdf.rectangle(x: 50.0, y:, width: 495.0, height: 25.0)
+    |> pdf.rectangle_fill_colour(background),
+  )
+  |> pdf.add_text(pdf.text(text1, x: 60.0, y: y +. 7.0) |> pdf.font(font))
+  |> pdf.add_text(pdf.text(text2, x: 300.0, y: y +. 7.0) |> pdf.font(font))
+  |> pdf.add_text(pdf.text(text3, x: 380.0, y: y +. 7.0) |> pdf.font(font))
+  |> pdf.add_text(pdf.text(text4, x: 480.0, y: y +. 7.0) |> pdf.font(font))
 }
