@@ -15,6 +15,7 @@ pub opaque type Document {
     pages: List(Page),
     default_font: String,
     default_text_size: Float,
+    default_text_colour: Colour,
     default_page_size: PageSize,
   )
 }
@@ -178,6 +179,7 @@ pub fn new_document() -> Document {
     pages: [],
     default_font: "Helvetica",
     default_text_size: 12.0,
+    default_text_colour: Rgb(0.0, 0.0, 0.0),
     default_page_size: size_a4,
   )
 }
@@ -247,6 +249,14 @@ pub fn default_font(document: Document, font: String) -> Document {
 ///
 pub fn default_text_size(document: Document, size: Float) -> Document {
   Document(..document, default_text_size: size)
+}
+
+/// Set the default text colour for the document.
+///
+/// This colour is used when text is added without specifying a colour.
+///
+pub fn default_text_colour(document: Document, colour: Colour) -> Document {
+  Document(..document, default_text_colour: colour)
 }
 
 /// Set the default page size for the document.
@@ -384,7 +394,7 @@ pub fn path(x x: Float, y y: Float) -> Path {
 
 /// Add a line to the path.
 ///
-pub fn line_to(path: Path, x x: Float, y y: Float) -> Path {
+pub fn line(path: Path, x x: Float, y y: Float) -> Path {
   Path(..path, operations: list.append(path.operations, [LineTo(x, y)]))
 }
 
@@ -521,14 +531,7 @@ fn document_to_objects(document: Document) -> List(Object) {
         let #(objects, next_id) = acc
         let #(page, page_id) = pair
         let #(page_obj, content_obj, font_objs, next_id) =
-          page_to_objects(
-            page,
-            page_id,
-            next_id,
-            document.default_font,
-            document.default_text_size,
-            document.default_page_size,
-          )
+          page_to_objects(page, page_id, next_id, document)
         #(list.flatten([objects, [page_obj, content_obj], font_objs]), next_id)
       },
     )
@@ -540,14 +543,12 @@ fn page_to_objects(
   page: Page,
   page_id: Int,
   next_id: Int,
-  default_font: String,
-  default_text_size: Float,
-  default_page_size: PageSize,
+  document: Document,
 ) -> #(Object, Object, List(Object), Int) {
   let content_id = next_id
-  let fonts = collect_fonts(page.contents, default_font)
+  let fonts = collect_fonts(page.contents, document.default_font)
   let font_start_id = next_id + 1
-  let size = option.unwrap(page.size, default_page_size)
+  let size = option.unwrap(page.size, document.default_page_size)
 
   let #(font_dict, font_objs, next_id) =
     list.fold(
@@ -571,8 +572,7 @@ fn page_to_objects(
       },
     )
 
-  let content_stream =
-    render_content_stream(page.contents, default_font, default_text_size)
+  let content_stream = render_content_stream(page.contents, document)
 
   let page_obj =
     Object(page_id, None, [
@@ -611,14 +611,12 @@ fn collect_fonts(contents: List(Content), default_font: String) -> List(String) 
 
 fn render_content_stream(
   contents: List(Content),
-  default_font: String,
-  default_text_size: Float,
+  document: Document,
 ) -> BitArray {
-  let fonts = collect_fonts(contents, default_font)
+  let fonts = collect_fonts(contents, document.default_font)
   list.fold(contents, <<>>, fn(stream, content) {
     case content {
-      ContentText(text) ->
-        render_text(stream, text, fonts, default_font, default_text_size)
+      ContentText(text) -> render_text(stream, text, fonts, document)
       ContentRectangle(rect) -> render_rectangle(stream, rect)
       ContentPath(path) -> render_path(stream, path)
       ContentShape(shape) -> render_shape(stream, shape)
@@ -630,12 +628,12 @@ fn render_text(
   stream: BitArray,
   text: Text,
   fonts: List(String),
-  default_font: String,
-  default_text_size: Float,
+  document: Document,
 ) -> BitArray {
   let Text(content:, x:, y:, font:, size:, colour:) = text
-  let font = option.unwrap(font, default_font)
-  let size = option.unwrap(size, default_text_size)
+  let font = option.unwrap(font, document.default_font)
+  let size = option.unwrap(size, document.default_text_size)
+  let colour = option.unwrap(colour, document.default_text_colour)
   let font_index = case
     list.index_map(fonts, fn(f, i) { #(f, i) })
     |> list.find(fn(p) { p.0 == font })
@@ -645,18 +643,15 @@ fn render_text(
   }
   let font_key = "/F" <> int.to_string(font_index + 1)
   let stream = <<stream:bits, "BT\n">>
-  let stream = case colour {
-    Some(Rgb(r, g, b)) -> <<
-      stream:bits,
-      render_float(r):utf8,
-      " ",
-      render_float(g):utf8,
-      " ",
-      render_float(b):utf8,
-      " rg\n",
-    >>
-    None -> stream
-  }
+  let stream = <<
+    stream:bits,
+    render_float(colour.red):utf8,
+    " ",
+    render_float(colour.green):utf8,
+    " ",
+    render_float(colour.blue):utf8,
+    " rg\n",
+  >>
   let encoded_content = utf8_to_win_ansi(content)
   <<
     stream:bits,
@@ -1003,33 +998,60 @@ fn codepoint_to_win_ansi(codepoint: UtfCodepoint) -> BitArray {
     // Latin-1 Supplement (U+00A0 to U+00FF) - maps directly
     c if c >= 160 && c <= 255 -> <<c>>
     // Special WinAnsi mappings for characters outside Latin-1
-    0x20AC -> <<0x80>>  // €
-    0x201A -> <<0x82>>  // ‚
-    0x0192 -> <<0x83>>  // ƒ
-    0x201E -> <<0x84>>  // „
-    0x2026 -> <<0x85>>  // …
-    0x2020 -> <<0x86>>  // †
-    0x2021 -> <<0x87>>  // ‡
-    0x02C6 -> <<0x88>>  // ˆ
-    0x2030 -> <<0x89>>  // ‰
-    0x0160 -> <<0x8A>>  // Š
-    0x2039 -> <<0x8B>>  // ‹
-    0x0152 -> <<0x8C>>  // Œ
-    0x017D -> <<0x8E>>  // Ž
-    0x2018 -> <<0x91>>  // '
-    0x2019 -> <<0x92>>  // '
-    0x201C -> <<0x93>>  // "
-    0x201D -> <<0x94>>  // "
-    0x2022 -> <<0x95>>  // •
-    0x2013 -> <<0x96>>  // –
-    0x2014 -> <<0x97>>  // —
-    0x02DC -> <<0x98>>  // ˜
-    0x2122 -> <<0x99>>  // ™
-    0x0161 -> <<0x9A>>  // š
-    0x203A -> <<0x9B>>  // ›
-    0x0153 -> <<0x9C>>  // œ
-    0x017E -> <<0x9E>>  // ž
-    0x0178 -> <<0x9F>>  // Ÿ
+    0x20AC -> <<0x80>>
+    // €
+    0x201A -> <<0x82>>
+    // ‚
+    0x0192 -> <<0x83>>
+    // ƒ
+    0x201E -> <<0x84>>
+    // „
+    0x2026 -> <<0x85>>
+    // …
+    0x2020 -> <<0x86>>
+    // †
+    0x2021 -> <<0x87>>
+    // ‡
+    0x02C6 -> <<0x88>>
+    // ˆ
+    0x2030 -> <<0x89>>
+    // ‰
+    0x0160 -> <<0x8A>>
+    // Š
+    0x2039 -> <<0x8B>>
+    // ‹
+    0x0152 -> <<0x8C>>
+    // Œ
+    0x017D -> <<0x8E>>
+    // Ž
+    0x2018 -> <<0x91>>
+    // '
+    0x2019 -> <<0x92>>
+    // '
+    0x201C -> <<0x93>>
+    // "
+    0x201D -> <<0x94>>
+    // "
+    0x2022 -> <<0x95>>
+    // •
+    0x2013 -> <<0x96>>
+    // –
+    0x2014 -> <<0x97>>
+    // —
+    0x02DC -> <<0x98>>
+    // ˜
+    0x2122 -> <<0x99>>
+    // ™
+    0x0161 -> <<0x9A>>
+    // š
+    0x203A -> <<0x9B>>
+    // ›
+    0x0153 -> <<0x9C>>
+    // œ
+    0x017E -> <<0x9E>>
+    // ž
+    0x0178 -> <<0x9F>>
+    // Ÿ
     // Fallback: use ? for unsupported characters
     _ -> <<"?">>
   }
