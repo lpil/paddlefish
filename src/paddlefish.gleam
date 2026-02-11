@@ -563,6 +563,7 @@ fn page_to_objects(
             #("Type", Name("Font")),
             #("Subtype", Name("Type1")),
             #("BaseFont", Name(font)),
+            #("Encoding", Name("WinAnsiEncoding")),
           ])
         #(
           [#(font_key, Reference(obj_id)), ..dict],
@@ -652,7 +653,7 @@ fn render_text(
     render_float(colour.blue):utf8,
     " rg\n",
   >>
-  let encoded_content = utf8_to_win_ansi(content)
+  let encoded_content = encode_text(<<content:utf8>>, <<>>)
   <<
     stream:bits,
     font_key:utf8,
@@ -979,81 +980,83 @@ fn render_float(f: Float) -> String {
 /// Western European languages), and some additional characters like curly
 /// quotes, em-dashes, and the Euro sign.
 ///
-/// Characters outside this encoding (such as Cyrillic, Greek, Chinese, etc.)
-/// are replaced with "?". To display these characters, you would need to embed
-/// a TrueType or OpenType font that supports them, which is not yet implemented.
+/// TODO: embed portions of fonts as needed in order to support more
+/// characters.
 ///
-fn utf8_to_win_ansi(text: String) -> BitArray {
-  text
-  |> string.to_utf_codepoints
-  |> list.map(codepoint_to_win_ansi)
-  |> bit_array.concat
-}
+fn encode_text(in: BitArray, out: BitArray) -> BitArray {
+  case in {
+    <<>> -> out
 
-fn codepoint_to_win_ansi(codepoint: UtfCodepoint) -> BitArray {
-  let code = string.utf_codepoint_to_int(codepoint)
-  case code {
-    // ASCII range - same in both encodings
-    c if c >= 0 && c <= 127 -> <<c>>
-    // Latin-1 Supplement (U+00A0 to U+00FF) - maps directly
-    c if c >= 160 && c <= 255 -> <<c>>
-    // Special WinAnsi mappings for characters outside Latin-1
-    // €
-    0x20AC -> <<0x80>>
-    // ‚
-    0x201A -> <<0x82>>
-    // ƒ
-    0x0192 -> <<0x83>>
-    // „
-    0x201E -> <<0x84>>
-    // …
-    0x2026 -> <<0x85>>
-    // †
-    0x2020 -> <<0x86>>
-    // ‡
-    0x2021 -> <<0x87>>
-    // ˆ
-    0x02C6 -> <<0x88>>
-    // ‰
-    0x2030 -> <<0x89>>
-    // Š
-    0x0160 -> <<0x8A>>
-    // ‹
-    0x2039 -> <<0x8B>>
+    // ASCII range (U+0000-U+007F) - single byte, same in both encodings
+    <<c, rest:bytes>> if c <= 127 -> encode_text(rest, <<out:bits, c>>)
+
+    // Latin-1 Supplement (U+00A0-U+00FF) encoded as 2 bytes in UTF-8
+    // U+00A0-U+00BF: C2 A0-BF -> A0-BF
+    <<0xC2, c, rest:bytes>> if c >= 0xA0 -> encode_text(rest, <<out:bits, c>>)
+    // U+00C0-U+00FF: C3 80-BF -> C0-FF
+    <<0xC3, c, rest:bytes>> -> encode_text(rest, <<out:bits, { c + 0x40 }>>)
+
+    // Special WinAnsi mappings (2-byte UTF-8 sequences)
     // Œ
-    0x0152 -> <<0x8C>>
-    // Ž
-    0x017D -> <<0x8E>>
-    // '
-    0x2018 -> <<0x91>>
-    // '
-    0x2019 -> <<0x92>>
-    // "
-    0x201C -> <<0x93>>
-    // "
-    0x201D -> <<0x94>>
-    // •
-    0x2022 -> <<0x95>>
-    // –
-    0x2013 -> <<0x96>>
-    // —
-    0x2014 -> <<0x97>>
-    // ˜
-    0x02DC -> <<0x98>>
-    // ™
-    0x2122 -> <<0x99>>
-    // š
-    0x0161 -> <<0x9A>>
-    // ›
-    0x203A -> <<0x9B>>
+    <<0xC5, 0x92, rest:bytes>> -> encode_text(rest, <<out:bits, 0x8C>>)
     // œ
-    0x0153 -> <<0x9C>>
-    // ž
-    0x017E -> <<0x9E>>
+    <<0xC5, 0x93, rest:bytes>> -> encode_text(rest, <<out:bits, 0x9C>>)
+    // Š
+    <<0xC5, 0xA0, rest:bytes>> -> encode_text(rest, <<out:bits, 0x8A>>)
+    // š
+    <<0xC5, 0xA1, rest:bytes>> -> encode_text(rest, <<out:bits, 0x9A>>)
     // Ÿ
-    0x0178 -> <<0x9F>>
-    // Fallback: use ? for unsupported characters
-    _ -> <<"?">>
+    <<0xC5, 0xB8, rest:bytes>> -> encode_text(rest, <<out:bits, 0x9F>>)
+    // Ž
+    <<0xC5, 0xBD, rest:bytes>> -> encode_text(rest, <<out:bits, 0x8E>>)
+    // ž
+    <<0xC5, 0xBE, rest:bytes>> -> encode_text(rest, <<out:bits, 0x9E>>)
+    // ƒ
+    <<0xC6, 0x92, rest:bytes>> -> encode_text(rest, <<out:bits, 0x83>>)
+    // ˆ
+    <<0xCB, 0x86, rest:bytes>> -> encode_text(rest, <<out:bits, 0x88>>)
+    // ˜
+    <<0xCB, 0x9C, rest:bytes>> -> encode_text(rest, <<out:bits, 0x98>>)
+
+    // Special WinAnsi mappings (3-byte UTF-8 sequences)
+    // –
+    <<0xE2, 0x80, 0x93, rest:bytes>> -> encode_text(rest, <<out:bits, 0x96>>)
+    // —
+    <<0xE2, 0x80, 0x94, rest:bytes>> -> encode_text(rest, <<out:bits, 0x97>>)
+    // '
+    <<0xE2, 0x80, 0x98, rest:bytes>> -> encode_text(rest, <<out:bits, 0x91>>)
+    // '
+    <<0xE2, 0x80, 0x99, rest:bytes>> -> encode_text(rest, <<out:bits, 0x92>>)
+    // ‚
+    <<0xE2, 0x80, 0x9A, rest:bytes>> -> encode_text(rest, <<out:bits, 0x82>>)
+    // "
+    <<0xE2, 0x80, 0x9C, rest:bytes>> -> encode_text(rest, <<out:bits, 0x93>>)
+    // "
+    <<0xE2, 0x80, 0x9D, rest:bytes>> -> encode_text(rest, <<out:bits, 0x94>>)
+    // „
+    <<0xE2, 0x80, 0x9E, rest:bytes>> -> encode_text(rest, <<out:bits, 0x84>>)
+    // †
+    <<0xE2, 0x80, 0xA0, rest:bytes>> -> encode_text(rest, <<out:bits, 0x86>>)
+    // ‡
+    <<0xE2, 0x80, 0xA1, rest:bytes>> -> encode_text(rest, <<out:bits, 0x87>>)
+    // •
+    <<0xE2, 0x80, 0xA2, rest:bytes>> -> encode_text(rest, <<out:bits, 0x95>>)
+    // …
+    <<0xE2, 0x80, 0xA6, rest:bytes>> -> encode_text(rest, <<out:bits, 0x85>>)
+    // ‰
+    <<0xE2, 0x80, 0xB0, rest:bytes>> -> encode_text(rest, <<out:bits, 0x89>>)
+    // ‹
+    <<0xE2, 0x80, 0xB9, rest:bytes>> -> encode_text(rest, <<out:bits, 0x8B>>)
+    // ›
+    <<0xE2, 0x80, 0xBA, rest:bytes>> -> encode_text(rest, <<out:bits, 0x9B>>)
+    // €
+    <<0xE2, 0x82, 0xAC, rest:bytes>> -> encode_text(rest, <<out:bits, 0x80>>)
+    // ™
+    <<0xE2, 0x84, 0xA2, rest:bytes>> -> encode_text(rest, <<out:bits, 0x99>>)
+
+    <<c, rest:bytes>> -> encode_text(rest, <<out:bits, c>>)
+
+    rest -> <<out:bits, rest:bits>>
   }
 }
 
