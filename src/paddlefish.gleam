@@ -1,8 +1,11 @@
 import gleam/bit_array
+import gleam/dict.{type Dict}
 import gleam/float
 import gleam/int
 import gleam/list
 import gleam/option.{None, Some}
+import gleam/result
+import gleam/set
 import gleam/string
 import gleam/time/calendar
 import gleam/time/timestamp
@@ -32,14 +35,24 @@ pub type PageSize {
   PageSize(width: Float, height: Float)
 }
 
+/// An A3 page size, as specified by ISO 216.
+///
 pub const size_a3 = PageSize(width: 842.0, height: 1191.0)
 
+/// An A4 page size, as specified by ISO 216.
+///
 pub const size_a4 = PageSize(width: 595.0, height: 842.0)
 
+/// An A5 page size, as specified by ISO 216.
+///
 pub const size_a5 = PageSize(width: 420.0, height: 595.0)
 
+/// The "letter" size, according to the American paper sizes standard.
+///
 pub const size_usa_letter = PageSize(width: 612.0, height: 792.0)
 
+/// The "legal" size, according to the American paper sizes standard.
+///
 pub const size_usa_legal = PageSize(width: 612.0, height: 1008.0)
 
 /// Convert a page size to portrait orientation.
@@ -99,7 +112,8 @@ pub opaque type Rectangle {
   )
 }
 
-/// An open path made up of lines.
+/// An open path made up of lines. This can be drawn as is, or closed to form a
+/// shape which can have a fill.
 ///
 pub opaque type Path {
   Path(
@@ -111,7 +125,7 @@ pub opaque type Path {
   )
 }
 
-/// A closed shape made from one or more paths.
+/// A shape made from one or more closed paths.
 ///
 pub opaque type Shape {
   Shape(
@@ -144,7 +158,7 @@ pub opaque type Image {
   )
 }
 
-/// An error that can occur when creating an image.
+/// Errors that can occur when creating an image.
 ///
 pub type ImageError {
   /// The image format is recognised but not supported.
@@ -158,7 +172,7 @@ type Content {
   ContentRectangle(Rectangle)
   ContentPath(Path)
   ContentShape(Shape)
-  JpegImage(Image)
+  ContentJpegImage(Image)
 }
 
 type Info {
@@ -299,7 +313,7 @@ pub fn default_page_size(document: Document, size: PageSize) -> Document {
 /// ```
 ///
 pub fn add_page(document: Document, page: Page) -> Document {
-  Document(..document, pages: list.append(document.pages, [page]))
+  Document(..document, pages: [page, ..document.pages])
 }
 
 /// Create a new text element at the given position.
@@ -320,8 +334,22 @@ pub fn text(content: String, x x: Float, y y: Float) -> Text {
 
 /// Set the font for a text element.
 ///
-/// The font must be the name of one of the 14 standard PDF fonts, such as
-/// `"Helvetica"` or `"Times-Roman"`.
+/// The font must be the name of one of the 14 standard PDF fonts.
+///
+/// - Courier,
+/// - Courier-Bold,
+/// - Courier-Oblique,
+/// - Courier-BoldOblique
+/// - Helvetica,
+/// - Helvetica-Bold,
+/// - Helvetica-Oblique,
+/// - Helvetica-BoldOblique
+/// - Times-Roman,
+/// - Times-Bold,
+/// - Times-Italic,
+/// - Times-BoldItalic
+/// - Symbol
+/// - ZapfDingbats
 ///
 pub fn font(text: Text, font: String) -> Text {
   Text(..text, font: Some(font))
@@ -349,7 +377,7 @@ pub fn text_colour(text: Text, colour: Colour) -> Text {
 /// ```
 ///
 pub fn add_text(page: Page, text: Text) -> Page {
-  Page(..page, contents: list.append(page.contents, [ContentText(text)]))
+  Page(..page, contents: [ContentText(text), ..page.contents])
 }
 
 /// Create a new rectangle at the given position with the given dimensions.
@@ -398,10 +426,7 @@ pub fn rectangle_line_width(rectangle: Rectangle, width: Float) -> Rectangle {
 /// Add a rectangle to the page.
 ///
 pub fn add_rectangle(page: Page, rectangle: Rectangle) -> Page {
-  Page(
-    ..page,
-    contents: list.append(page.contents, [ContentRectangle(rectangle)]),
-  )
+  Page(..page, contents: [ContentRectangle(rectangle), ..page.contents])
 }
 
 /// Create a new path starting at the given point.
@@ -419,7 +444,7 @@ pub fn path(x x: Float, y y: Float) -> Path {
 /// Add a line to the path.
 ///
 pub fn line(path: Path, x x: Float, y y: Float) -> Path {
-  Path(..path, operations: list.append(path.operations, [LineTo(x, y)]))
+  Path(..path, operations: [LineTo(x, y), ..path.operations])
 }
 
 /// Set the stroke colour for a path.
@@ -437,7 +462,7 @@ pub fn path_line_width(path: Path, width: Float) -> Path {
 /// Add a path to the page.
 ///
 pub fn add_path(page: Page, path: Path) -> Page {
-  Page(..page, contents: list.append(page.contents, [ContentPath(path)]))
+  Page(..page, contents: [ContentPath(path), ..page.contents])
 }
 
 /// Close a path to create a shape.
@@ -487,7 +512,7 @@ pub fn shape_line_width(shape: Shape, width: Float) -> Shape {
 /// Add a shape to the page.
 ///
 pub fn add_shape(page: Page, shape: Shape) -> Page {
-  Page(..page, contents: list.append(page.contents, [ContentShape(shape)]))
+  Page(..page, contents: [ContentShape(shape), ..page.contents])
 }
 
 /// Create an image from JPEG data.
@@ -540,7 +565,7 @@ pub fn image_height(image: Image, height: Float) -> Image {
 /// Add an image to the page.
 ///
 pub fn add_image(page: Page, image: Image) -> Page {
-  Page(..page, contents: list.append(page.contents, [JpegImage(image)]))
+  Page(..page, contents: [ContentJpegImage(image), ..page.contents])
 }
 
 type Object {
@@ -586,37 +611,33 @@ pub fn render(document: Document) -> BitArray {
 }
 
 fn document_to_objects(document: Document) -> List(Object) {
-  let page_count = list.length(document.pages)
+  let pages = list.reverse(document.pages)
+  let page_count = list.length(pages)
   let page_ids = list.range(3, 3 + page_count - 1)
   let page_refs = list.map(page_ids, Reference)
 
   let catalog =
     Object(1, None, [#("Type", Name("Catalog")), #("Pages", Reference(2))])
 
-  let pages =
+  let pages_object =
     Object(2, None, [
       #("Type", Name("Pages")),
       #("Kids", Array(page_refs)),
       #("Count", Int(page_count)),
     ])
 
-  let #(page_objectects, _) =
-    list.fold(
-      list.zip(document.pages, page_ids),
-      #([], 3 + page_count),
-      fn(acc, pair) {
-        let #(objects, next_id) = acc
-        let #(page, page_id) = pair
-        let #(page_object, content_object, font_objects, next_id) =
-          page_to_objects(page, page_id, next_id, document)
-        #(
-          list.flatten([objects, [page_object, content_object], font_objects]),
-          next_id,
-        )
-      },
-    )
+  let #(page_objects, _) =
+    list.fold(list.zip(pages, page_ids), #([], 3 + page_count), fn(acc, pair) {
+      let #(objects, next_id) = acc
+      let #(page, page_id) = pair
+      let #(page_object, content_object, font_objects, next_id) =
+        page_to_objects(page, page_id, next_id, document)
+      let objects =
+        list.flatten([objects, [page_object, content_object], font_objects])
+      #(objects, next_id)
+    })
 
-  [catalog, pages, ..page_objectects]
+  [catalog, pages_object, ..page_objects]
 }
 
 fn page_to_objects(
@@ -625,9 +646,9 @@ fn page_to_objects(
   next_id: Int,
   document: Document,
 ) -> #(Object, Object, List(Object), Int) {
+  let contents = list.reverse(page.contents)
   let content_id = next_id
-  let fonts = collect_fonts(page.contents, document.default_font)
-  let images = collect_images(page.contents)
+  let #(fonts, images) = collect_assets(contents, document.default_font)
   let font_start_id = next_id + 1
   let size = option.unwrap(page.size, document.default_page_size)
 
@@ -680,7 +701,13 @@ fn page_to_objects(
       },
     )
 
-  let content_stream = render_content_stream(page.contents, document)
+  let font_indexes = list.index_fold(fonts, dict.new(), dict.insert)
+  let image_indexes =
+    list.index_fold(images, dict.new(), fn(images, image, index) {
+      dict.insert(images, image.data, index)
+    })
+  let content_stream =
+    render_content_stream(contents, document, font_indexes, image_indexes)
 
   let resources = case image_dict {
     [] -> [#("Font", Dictionary(font_dict))]
@@ -704,62 +731,56 @@ fn page_to_objects(
 
   let content_object = Object(content_id, Some(content_stream), [])
 
-  #(
-    page_object,
-    content_object,
-    list.flatten([list.reverse(font_objects), list.reverse(image_objects)]),
-    next_id,
-  )
+  let objects =
+    list.flatten([list.reverse(font_objects), list.reverse(image_objects)])
+  #(page_object, content_object, objects, next_id)
 }
 
-fn collect_fonts(contents: List(Content), default_font: String) -> List(String) {
-  list.fold(contents, [], fn(fonts, content) {
-    case content {
-      ContentText(Text(font:, ..)) -> {
-        let font = option.unwrap(font, default_font)
-        case list.contains(fonts, font) {
-          True -> fonts
-          False -> [font, ..fonts]
+fn collect_assets(
+  contents: List(Content),
+  default_font: String,
+) -> #(List(String), List(Image)) {
+  let #(fonts, images) =
+    list.fold(contents, #(set.new(), []), fn(assets, content) {
+      case content {
+        ContentRectangle(_) -> assets
+        ContentPath(_) -> assets
+        ContentShape(_) -> assets
+        ContentText(Text(font:, ..)) -> {
+          let font = option.unwrap(font, default_font)
+          let fonts = set.insert(assets.0, font)
+          #(fonts, assets.1)
+        }
+        ContentJpegImage(image) -> {
+          let images = case
+            list.find(assets.1, fn(i: Image) { i.data == image.data })
+          {
+            Ok(_) -> assets.1
+            Error(_) -> [image, ..assets.1]
+          }
+          #(assets.0, images)
         }
       }
-      ContentRectangle(_) -> fonts
-      ContentPath(_) -> fonts
-      ContentShape(_) -> fonts
-      JpegImage(_) -> fonts
-    }
-  })
-  |> list.reverse
-}
+    })
 
-fn collect_images(contents: List(Content)) -> List(Image) {
-  list.fold(contents, [], fn(images, content) {
-    case content {
-      JpegImage(image) -> {
-        // Deduplicate by comparing the data reference
-        case list.find(images, fn(i: Image) { i.data == image.data }) {
-          Ok(_) -> images
-          Error(_) -> [image, ..images]
-        }
-      }
-      _ -> images
-    }
-  })
-  |> list.reverse
+  let fonts = fonts |> set.to_list |> list.sort(string.compare)
+  let images = list.reverse(images)
+  #(fonts, images)
 }
 
 fn render_content_stream(
   contents: List(Content),
   document: Document,
+  fonts: Dict(String, Int),
+  images: Dict(BitArray, Int),
 ) -> BitArray {
-  let fonts = collect_fonts(contents, document.default_font)
-  let images = collect_images(contents)
   list.fold(contents, <<>>, fn(stream, content) {
     case content {
       ContentText(text) -> render_text(stream, text, fonts, document)
       ContentRectangle(rect) -> render_rectangle(stream, rect)
       ContentPath(path) -> render_path(stream, path)
       ContentShape(shape) -> render_shape(stream, shape)
-      JpegImage(image) -> render_image(stream, image, images)
+      ContentJpegImage(image) -> render_image(stream, image, images)
     }
   })
 }
@@ -767,20 +788,14 @@ fn render_content_stream(
 fn render_text(
   stream: BitArray,
   text: Text,
-  fonts: List(String),
+  fonts: Dict(String, Int),
   document: Document,
 ) -> BitArray {
   let Text(content:, x:, y:, font:, size:, colour:) = text
   let font = option.unwrap(font, document.default_font)
   let size = option.unwrap(size, document.default_text_size)
   let colour = option.unwrap(colour, document.default_text_colour)
-  let font_index = case
-    list.index_map(fonts, fn(f, i) { #(f, i) })
-    |> list.find(fn(p) { p.0 == font })
-  {
-    Ok(#(_, i)) -> i
-    Error(_) -> 0
-  }
+  let font_index = dict.get(fonts, font) |> result.unwrap(0)
   let font_key = "/F" <> int.to_string(font_index + 1)
   let stream = <<stream:bits, "BT\n">>
   let stream = <<
@@ -909,7 +924,9 @@ fn render_path(stream: BitArray, path: Path) -> BitArray {
 
   // Draw lines
   let stream =
-    list.fold(operations, stream, fn(stream, op) {
+    operations
+    |> list.reverse
+    |> list.fold(stream, fn(stream, op) {
       case op {
         LineTo(x, y) -> <<
           stream:bits,
@@ -964,7 +981,9 @@ fn render_shape(stream: BitArray, shape: Shape) -> BitArray {
 
   // Draw each subpath
   let stream =
-    list.fold(subpaths, stream, fn(stream, subpath) {
+    subpaths
+    |> list.reverse
+    |> list.fold(stream, fn(stream, subpath) {
       let Subpath(start_x, start_y, operations) = subpath
 
       // Move to start
@@ -978,7 +997,9 @@ fn render_shape(stream: BitArray, shape: Shape) -> BitArray {
 
       // Draw lines
       let stream =
-        list.fold(operations, stream, fn(stream, op) {
+        operations
+        |> list.reverse
+        |> list.fold(stream, fn(stream, op) {
           case op {
             LineTo(x, y) -> <<
               stream:bits,
@@ -1003,7 +1024,11 @@ fn render_shape(stream: BitArray, shape: Shape) -> BitArray {
   }
 }
 
-fn render_image(stream: BitArray, image: Image, images: List(Image)) -> BitArray {
+fn render_image(
+  stream: BitArray,
+  image: Image,
+  images: Dict(BitArray, Int),
+) -> BitArray {
   let Image(
     data:,
     file_width:,
@@ -1015,14 +1040,7 @@ fn render_image(stream: BitArray, image: Image, images: List(Image)) -> BitArray
   ) = image
 
   // Find image index by matching data
-  let image_index =
-    list.index_fold(images, 0, fn(found, img, index) {
-      case img.data == data {
-        True -> index
-        False -> found
-      }
-    })
-
+  let image_index = dict.get(images, data) |> result.unwrap(0)
   let image_key = "/Im" <> int.to_string(image_index + 1)
 
   // Calculate render size, preserving aspect ratio if only one dimension is set
