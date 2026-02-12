@@ -641,7 +641,12 @@ fn page_to_objects(
 ) -> #(Object, Object, List(Object), Int) {
   let contents = list.reverse(page.contents)
   let content_id = next_id
-  let #(fonts, images) = collect_assets(contents, document.default_font)
+  let #(fonts, images, alphas) =
+    collect_assets(
+      contents,
+      document.default_font,
+      document.default_text_colour,
+    )
   let font_start_id = next_id + 1
   let size = option.unwrap(page.size, document.default_page_size)
 
@@ -694,20 +699,46 @@ fn page_to_objects(
       },
     )
 
-  let font_indexes = list.index_fold(fonts, dict.new(), dict.insert)
-  let image_indexes =
-    list.index_fold(images, dict.new(), fn(images, image, index) {
-      dict.insert(images, image.data, index)
-    })
-  let content_stream =
-    render_content_stream(contents, document, font_indexes, image_indexes)
+  let #(extgstate_dict, extgstate_objects, next_id) =
+    list.fold(
+      list.index_map(alphas, fn(alpha, i) { #(alpha, i) }),
+      #([], [], next_id),
+      fn(acc, pair) {
+        let #(dict, objs, object_id) = acc
+        let #(alpha, index) = pair
+        let gs_key = "GS" <> int.to_string(index + 1)
+        let gs_object =
+          Object(object_id, None, [
+            #("Type", Name("ExtGState")),
+            #("ca", Float(alpha)),
+            #("CA", Float(alpha)),
+          ])
+        #(
+          [#(gs_key, Reference(object_id)), ..dict],
+          [gs_object, ..objs],
+          object_id + 1,
+        )
+      },
+    )
 
+  let indexes =
+    AssetIndexes(
+      fonts: list.index_fold(fonts, dict.new(), dict.insert),
+      images: list.index_fold(images, dict.new(), fn(images, image, index) {
+        dict.insert(images, image.data, index)
+      }),
+      alphas: list.index_fold(alphas, dict.new(), dict.insert),
+    )
+  let content_stream = render_content_stream(contents, document, indexes)
+
+  let resources = [#("Font", Dictionary(font_dict))]
   let resources = case image_dict {
-    [] -> [#("Font", Dictionary(font_dict))]
-    _ -> [
-      #("Font", Dictionary(font_dict)),
-      #("XObject", Dictionary(image_dict)),
-    ]
+    [] -> resources
+    _ -> [#("XObject", Dictionary(image_dict)), ..resources]
+  }
+  let resources = case extgstate_dict {
+    [] -> resources
+    _ -> [#("ExtGState", Dictionary(extgstate_dict)), ..resources]
   }
 
   let page_object =
@@ -725,55 +756,116 @@ fn page_to_objects(
   let content_object = Object(content_id, Some(content_stream), [])
 
   let objects =
-    list.flatten([list.reverse(font_objects), list.reverse(image_objects)])
+    list.flatten([
+      list.reverse(font_objects),
+      list.reverse(image_objects),
+      list.reverse(extgstate_objects),
+    ])
   #(page_object, content_object, objects, next_id)
+}
+
+type Assets {
+  Assets(fonts: set.Set(String), images: List(Image), alphas: set.Set(Float))
+}
+
+type AssetIndexes {
+  AssetIndexes(
+    fonts: Dict(String, Int),
+    images: Dict(BitArray, Int),
+    alphas: Dict(Float, Int),
+  )
 }
 
 fn collect_assets(
   contents: List(Content),
   default_font: String,
-) -> #(List(String), List(Image)) {
-  let #(fonts, images) =
-    list.fold(contents, #(set.new(), []), fn(assets, content) {
+  default_colour: Colour,
+) -> #(List(String), List(Image), List(Float)) {
+  let assets =
+    list.fold(contents, Assets(set.new(), [], set.new()), fn(assets, content) {
       case content {
-        ContentRectangle(_) -> assets
-        ContentPath(_) -> assets
-        ContentShape(_) -> assets
-        ContentText(Text(font:, ..)) -> {
+        ContentRectangle(Rectangle(fill_colour:, stroke_colour:, ..)) -> {
+          let alphas = collect_alpha(assets.alphas, fill_colour)
+          let alphas = collect_alpha(alphas, stroke_colour)
+          Assets(..assets, alphas:)
+        }
+        ContentPath(Path(stroke_colour:, ..)) -> {
+          let alphas = collect_alpha(assets.alphas, stroke_colour)
+          Assets(..assets, alphas:)
+        }
+        ContentShape(Shape(fill_colour:, stroke_colour:, ..)) -> {
+          let alphas = collect_alpha(assets.alphas, fill_colour)
+          let alphas = collect_alpha(alphas, stroke_colour)
+          Assets(..assets, alphas:)
+        }
+        ContentText(Text(font:, colour:, ..)) -> {
           let font = option.unwrap(font, default_font)
-          let fonts = set.insert(assets.0, font)
-          #(fonts, assets.1)
+          let fonts = set.insert(assets.fonts, font)
+          let colour = option.unwrap(colour, default_colour)
+          let #(_, _, _, alpha) = colour.to_rgba(colour)
+          let alphas = case alpha <. 1.0 {
+            True -> set.insert(assets.alphas, alpha)
+            False -> assets.alphas
+          }
+          Assets(..assets, fonts:, alphas:)
         }
         ContentJpegImage(image) -> {
           let images = case
-            list.find(assets.1, fn(i: Image) { i.data == image.data })
+            list.find(assets.images, fn(i: Image) { i.data == image.data })
           {
-            Ok(_) -> assets.1
-            Error(_) -> [image, ..assets.1]
+            Ok(_) -> assets.images
+            Error(_) -> [image, ..assets.images]
           }
-          #(assets.0, images)
+          Assets(..assets, images:)
         }
       }
     })
 
-  let fonts = fonts |> set.to_list |> list.sort(string.compare)
-  let images = list.reverse(images)
-  #(fonts, images)
+  let fonts = assets.fonts |> set.to_list |> list.sort(string.compare)
+  let images = list.reverse(assets.images)
+  let alphas = assets.alphas |> set.to_list |> list.sort(float.compare)
+  #(fonts, images, alphas)
+}
+
+fn collect_alpha(
+  alphas: set.Set(Float),
+  colour: option.Option(Colour),
+) -> set.Set(Float) {
+  case colour {
+    Some(c) -> {
+      let #(_, _, _, alpha) = colour.to_rgba(c)
+      case alpha <. 1.0 {
+        True -> set.insert(alphas, alpha)
+        False -> alphas
+      }
+    }
+    None -> alphas
+  }
+}
+
+fn set_alpha(stream: BitArray, alpha: Float, indexes: AssetIndexes) -> BitArray {
+  case alpha <. 1.0 {
+    True -> {
+      let gs_index = dict.get(indexes.alphas, alpha) |> result.unwrap(0)
+      let gs_key = "/GS" <> int.to_string(gs_index + 1)
+      <<stream:bits, gs_key:utf8, " gs\n">>
+    }
+    False -> stream
+  }
 }
 
 fn render_content_stream(
   contents: List(Content),
   document: Document,
-  fonts: Dict(String, Int),
-  images: Dict(BitArray, Int),
+  indexes: AssetIndexes,
 ) -> BitArray {
   list.fold(contents, <<>>, fn(stream, content) {
     case content {
-      ContentText(text) -> render_text(stream, text, fonts, document)
-      ContentRectangle(rect) -> render_rectangle(stream, rect)
-      ContentPath(path) -> render_path(stream, path)
-      ContentShape(shape) -> render_shape(stream, shape)
-      ContentJpegImage(image) -> render_image(stream, image, images)
+      ContentText(text) -> render_text(stream, text, indexes, document)
+      ContentRectangle(rect) -> render_rectangle(stream, rect, indexes)
+      ContentPath(path) -> render_path(stream, path, indexes)
+      ContentShape(shape) -> render_shape(stream, shape, indexes)
+      ContentJpegImage(image) -> render_image(stream, image, indexes)
     }
   })
 }
@@ -781,17 +873,18 @@ fn render_content_stream(
 fn render_text(
   stream: BitArray,
   text: Text,
-  fonts: Dict(String, Int),
+  indexes: AssetIndexes,
   document: Document,
 ) -> BitArray {
   let Text(content:, x:, y:, font:, size:, colour:) = text
   let font = option.unwrap(font, document.default_font)
   let size = option.unwrap(size, document.default_text_size)
   let colour = option.unwrap(colour, document.default_text_colour)
-  let font_index = dict.get(fonts, font) |> result.unwrap(0)
+  let font_index = dict.get(indexes.fonts, font) |> result.unwrap(0)
   let font_key = "/F" <> int.to_string(font_index + 1)
   let stream = <<stream:bits, "BT\n">>
-  let #(red, green, blue, _alpha) = colour.to_rgba(colour)
+  let #(red, green, blue, alpha) = colour.to_rgba(colour)
+  let stream = set_alpha(stream, alpha, indexes)
   let stream = <<
     stream:bits,
     render_float(red):utf8,
@@ -817,7 +910,11 @@ fn render_text(
   >>
 }
 
-fn render_rectangle(stream: BitArray, rect: Rectangle) -> BitArray {
+fn render_rectangle(
+  stream: BitArray,
+  rect: Rectangle,
+  indexes: AssetIndexes,
+) -> BitArray {
   let Rectangle(
     x:,
     y:,
@@ -837,7 +934,8 @@ fn render_rectangle(stream: BitArray, rect: Rectangle) -> BitArray {
   // Set fill colour if specified
   let stream = case fill_colour {
     Some(colour) -> {
-      let #(red, green, blue, _alpha) = colour.to_rgba(colour)
+      let #(red, green, blue, alpha) = colour.to_rgba(colour)
+      let stream = set_alpha(stream, alpha, indexes)
       <<
         stream:bits,
         render_float(red):utf8,
@@ -854,7 +952,8 @@ fn render_rectangle(stream: BitArray, rect: Rectangle) -> BitArray {
   // Set stroke colour if specified
   let stream = case stroke_colour {
     Some(colour) -> {
-      let #(red, green, blue, _alpha) = colour.to_rgba(colour)
+      let #(red, green, blue, alpha) = colour.to_rgba(colour)
+      let stream = set_alpha(stream, alpha, indexes)
       <<
         stream:bits,
         render_float(red):utf8,
@@ -890,7 +989,7 @@ fn render_rectangle(stream: BitArray, rect: Rectangle) -> BitArray {
   }
 }
 
-fn render_path(stream: BitArray, path: Path) -> BitArray {
+fn render_path(stream: BitArray, path: Path, indexes: AssetIndexes) -> BitArray {
   let Path(start_x:, start_y:, operations:, stroke_colour:, line_width:) = path
 
   // Set line width if specified
@@ -902,7 +1001,8 @@ fn render_path(stream: BitArray, path: Path) -> BitArray {
   // Set stroke colour if specified
   let stream = case stroke_colour {
     Some(colour) -> {
-      let #(red, green, blue, _alpha) = colour.to_rgba(colour)
+      let #(red, green, blue, alpha) = colour.to_rgba(colour)
+      let stream = set_alpha(stream, alpha, indexes)
       <<
         stream:bits,
         render_float(red):utf8,
@@ -945,7 +1045,11 @@ fn render_path(stream: BitArray, path: Path) -> BitArray {
   <<stream:bits, "S\n">>
 }
 
-fn render_shape(stream: BitArray, shape: Shape) -> BitArray {
+fn render_shape(
+  stream: BitArray,
+  shape: Shape,
+  indexes: AssetIndexes,
+) -> BitArray {
   let Shape(subpaths:, fill_colour:, stroke_colour:, line_width:) = shape
 
   // Set line width if specified
@@ -957,7 +1061,8 @@ fn render_shape(stream: BitArray, shape: Shape) -> BitArray {
   // Set fill colour if specified
   let stream = case fill_colour {
     Some(colour) -> {
-      let #(red, green, blue, _alpha) = colour.to_rgba(colour)
+      let #(red, green, blue, alpha) = colour.to_rgba(colour)
+      let stream = set_alpha(stream, alpha, indexes)
       <<
         stream:bits,
         render_float(red):utf8,
@@ -974,7 +1079,8 @@ fn render_shape(stream: BitArray, shape: Shape) -> BitArray {
   // Set stroke colour if specified
   let stream = case stroke_colour {
     Some(colour) -> {
-      let #(red, green, blue, _alpha) = colour.to_rgba(colour)
+      let #(red, green, blue, alpha) = colour.to_rgba(colour)
+      let stream = set_alpha(stream, alpha, indexes)
       <<
         stream:bits,
         render_float(red):utf8,
@@ -1036,7 +1142,7 @@ fn render_shape(stream: BitArray, shape: Shape) -> BitArray {
 fn render_image(
   stream: BitArray,
   image: Image,
-  images: Dict(BitArray, Int),
+  indexes: AssetIndexes,
 ) -> BitArray {
   let Image(
     data:,
@@ -1049,7 +1155,7 @@ fn render_image(
   ) = image
 
   // Find image index by matching data
-  let image_index = dict.get(images, data) |> result.unwrap(0)
+  let image_index = dict.get(indexes.images, data) |> result.unwrap(0)
   let image_key = "/Im" <> int.to_string(image_index + 1)
 
   // Calculate render size, preserving aspect ratio if only one dimension is set

@@ -1,0 +1,157 @@
+---
+version: 1.5.4
+title: pdf_with_transparency_test
+file: ./test/paddlefish_test.gleam
+test_name: pdf_with_transparency_test
+---
+%PDF-1.4
+1 0 obj
+<</Type /Catalog
+/Pages 2 0 R
+>>
+endobj
+2 0 obj
+<</Type /Pages
+/Kids [3 0 R ]
+/Count 1
+>>
+endobj
+3 0 obj
+<</Type /Page
+/Parent 2 0 R
+/MediaBox [0 0 595 842 ]
+/Resources <</ExtGState <</GS5 10 0 R
+/GS4 9 0 R
+/GS3 8 0 R
+/GS2 7 0 R
+/GS1 6 0 R
+>>
+/Font <</F1 5 0 R
+>>
+>>
+/Contents 4 0 R
+>>
+endobj
+4 0 obj
+<</Length 482
+>>
+stream
+0.9 0.9 0.9 rg
+50 650 200 100 re
+f
+0.8 0.8 1 rg
+50 400 200 200 re
+f
+BT
+1 0 0 rg
+/F1 16 Tf
+1 0 0 1 60 720 Tm
+(100% opacity) Tj
+ET
+BT
+/GS3 gs
+1 0 0 rg
+/F1 16 Tf
+1 0 0 1 60 695 Tm
+(50% opacity) Tj
+ET
+BT
+/GS1 gs
+1 0 0 rg
+/F1 16 Tf
+1 0 0 1 60 670 Tm
+(25% opacity) Tj
+ET
+/GS3 gs
+1 0 0 rg
+60 450 100 100 re
+f
+/GS3 gs
+0 0 1 rg
+110 420 100 100 re
+f
+4 w
+/GS2 gs
+0 1 0 rg
+/GS5 gs
+0 0.5 0 RG
+300 500 m
+450 500 l
+375 600 l
+h
+B*
+8 w
+/GS4 gs
+0.5 0 0.5 RG
+300 700 m
+350 750 l
+400 700 l
+450 750 l
+S
+
+endstream
+endobj
+5 0 obj
+<</Type /Font
+/Subtype /Type1
+/BaseFont /Helvetica
+/Encoding /WinAnsiEncoding
+>>
+endobj
+6 0 obj
+<</Type /ExtGState
+/ca 0.25
+/CA 0.25
+>>
+endobj
+7 0 obj
+<</Type /ExtGState
+/ca 0.3
+/CA 0.3
+>>
+endobj
+8 0 obj
+<</Type /ExtGState
+/ca 0.5
+/CA 0.5
+>>
+endobj
+9 0 obj
+<</Type /ExtGState
+/ca 0.6
+/CA 0.6
+>>
+endobj
+10 0 obj
+<</Type /ExtGState
+/ca 0.8
+/CA 0.8
+>>
+endobj
+11 0 obj
+<<>>
+endobj
+xref
+0 12
+0000000000 65535 f 
+0000000009 00000 n 
+0000000057 00000 n 
+0000000114 00000 n 
+0000000310 00000 n 
+0000000842 00000 n 
+0000000938 00000 n 
+0000000993 00000 n 
+0000001046 00000 n 
+0000001099 00000 n 
+0000001152 00000 n 
+0000001206 00000 n 
+trailer
+<<
+/Size 12
+/Root 1 0 R
+/Info 11 0 R
+>>
+startxref
+1227
+%%EOF
+

@@ -417,6 +417,75 @@ pub fn image_rejects_unknown_format_test() {
   assert result == Error(pdf.UnknownImageFormat)
 }
 
+pub fn pdf_with_transparency_test() {
+  let bytes =
+    pdf.new_document()
+    |> pdf.add_page(
+      pdf.new_page()
+      // Opaque background rectangles
+      |> pdf.add_rectangle(
+        pdf.rectangle(x: 50.0, y: 650.0, width: 200.0, height: 100.0)
+        |> pdf.rectangle_fill_colour(colour(0.9, 0.9, 0.9)),
+      )
+      |> pdf.add_rectangle(
+        pdf.rectangle(x: 50.0, y: 400.0, width: 200.0, height: 200.0)
+        |> pdf.rectangle_fill_colour(colour(0.8, 0.8, 1.0)),
+      )
+      // Semi-transparent text
+      |> pdf.add_text(
+        pdf.text("100% opacity", x: 60.0, y: 720.0)
+        |> pdf.text_colour(colour(1.0, 0.0, 0.0))
+        |> pdf.text_size(16.0),
+      )
+      |> pdf.add_text(
+        pdf.text("50% opacity", x: 60.0, y: 695.0)
+        |> pdf.text_colour(colour_with_alpha(1.0, 0.0, 0.0, 0.5))
+        |> pdf.text_size(16.0),
+      )
+      |> pdf.add_text(
+        pdf.text("25% opacity", x: 60.0, y: 670.0)
+        |> pdf.text_colour(colour_with_alpha(1.0, 0.0, 0.0, 0.25))
+        |> pdf.text_size(16.0),
+      )
+      // Overlapping semi-transparent rectangles (fill)
+      |> pdf.add_rectangle(
+        pdf.rectangle(x: 60.0, y: 450.0, width: 100.0, height: 100.0)
+        |> pdf.rectangle_fill_colour(colour_with_alpha(1.0, 0.0, 0.0, 0.5)),
+      )
+      |> pdf.add_rectangle(
+        pdf.rectangle(x: 110.0, y: 420.0, width: 100.0, height: 100.0)
+        |> pdf.rectangle_fill_colour(colour_with_alpha(0.0, 0.0, 1.0, 0.5)),
+      )
+      // Semi-transparent stroked shapes
+      |> pdf.add_shape(
+        pdf.path(x: 300.0, y: 500.0)
+        |> pdf.line(x: 450.0, y: 500.0)
+        |> pdf.line(x: 375.0, y: 600.0)
+        |> pdf.shape
+        |> pdf.shape_fill_colour(colour_with_alpha(0.0, 1.0, 0.0, 0.3))
+        |> pdf.shape_stroke_colour(colour_with_alpha(0.0, 0.5, 0.0, 0.8))
+        |> pdf.shape_line_width(4.0),
+      )
+      // Path with transparent stroke
+      |> pdf.add_path(
+        pdf.path(x: 300.0, y: 700.0)
+        |> pdf.line(x: 350.0, y: 750.0)
+        |> pdf.line(x: 400.0, y: 700.0)
+        |> pdf.line(x: 450.0, y: 750.0)
+        |> pdf.path_stroke_colour(colour_with_alpha(0.5, 0.0, 0.5, 0.6))
+        |> pdf.path_line_width(8.0),
+      ),
+    )
+    |> pdf.render
+
+  let assert Ok(_) =
+    simplifile.write_bits("pdfs/pdf_with_transparency_test.pdf", bytes)
+
+  bytes
+  |> bit_array_to_lossy_string
+  |> birdie.snap("pdf_with_transparency_test")
+}
+
 pub fn bit_array_to_lossy_string(input: BitArray) -> String {
   lossy_string(input, "")
 }
@@ -461,5 +530,10 @@ fn take_until_endstream(
 
 fn colour(r: Float, g: Float, b: Float) -> colour.Colour {
   let assert Ok(colour) = colour.from_rgb(r, g, b)
+  colour
+}
+
+fn colour_with_alpha(r: Float, g: Float, b: Float, a: Float) -> colour.Colour {
+  let assert Ok(colour) = colour.from_rgba(r, g, b, a)
   colour
 }
