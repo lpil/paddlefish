@@ -130,11 +130,35 @@ type PathOperation {
   LineTo(x: Float, y: Float)
 }
 
+/// An image to be drawn on a page.
+///
+pub opaque type Image {
+  Image(
+    data: BitArray,
+    file_width: Int,
+    file_height: Int,
+    x: Float,
+    y: Float,
+    render_width: option.Option(Float),
+    render_height: option.Option(Float),
+  )
+}
+
+/// An error that can occur when creating an image.
+///
+pub type ImageError {
+  /// The image format is recognised but not supported.
+  UnsupportedImageFormat(filetype: String)
+  /// The image format is not recognised.
+  UnknownImageFormat
+}
+
 type Content {
   ContentText(Text)
   ContentRectangle(Rectangle)
   ContentPath(Path)
   ContentShape(Shape)
+  JpegImage(Image)
 }
 
 type Info {
@@ -466,6 +490,59 @@ pub fn add_shape(page: Page, shape: Shape) -> Page {
   Page(..page, contents: list.append(page.contents, [ContentShape(shape)]))
 }
 
+/// Create an image from JPEG data.
+///
+/// Currently only JPEG images are supported. Returns an error if the data is
+/// not valid JPEG.
+///
+pub fn image(data: BitArray) -> Result(Image, ImageError) {
+  case parse_image_dimensions(data) {
+    Ok(#(width, height)) ->
+      Ok(Image(
+        data: data,
+        file_width: width,
+        file_height: height,
+        x: 0.0,
+        y: 0.0,
+        render_width: None,
+        render_height: None,
+      ))
+    Error(e) -> Error(e)
+  }
+}
+
+/// Set the position of an image on the page.
+///
+/// The position is from the bottom-left of the page.
+///
+pub fn image_position(image: Image, x x: Float, y y: Float) -> Image {
+  Image(..image, x: x, y: y)
+}
+
+/// Set the rendered width of an image.
+///
+/// If only width is set, the height scales proportionally to preserve the
+/// aspect ratio.
+///
+pub fn image_width(image: Image, width: Float) -> Image {
+  Image(..image, render_width: Some(width))
+}
+
+/// Set the rendered height of an image.
+///
+/// If only height is set, the width scales proportionally to preserve the
+/// aspect ratio.
+///
+pub fn image_height(image: Image, height: Float) -> Image {
+  Image(..image, render_height: Some(height))
+}
+
+/// Add an image to the page.
+///
+pub fn add_image(page: Page, image: Image) -> Page {
+  Page(..page, contents: list.append(page.contents, [JpegImage(image)]))
+}
+
 type Object {
   Object(
     id: Int,
@@ -523,20 +600,23 @@ fn document_to_objects(document: Document) -> List(Object) {
       #("Count", Int(page_count)),
     ])
 
-  let #(page_objects, _) =
+  let #(page_objectects, _) =
     list.fold(
       list.zip(document.pages, page_ids),
       #([], 3 + page_count),
       fn(acc, pair) {
         let #(objects, next_id) = acc
         let #(page, page_id) = pair
-        let #(page_obj, content_obj, font_objs, next_id) =
+        let #(page_object, content_object, font_objects, next_id) =
           page_to_objects(page, page_id, next_id, document)
-        #(list.flatten([objects, [page_obj, content_obj], font_objs]), next_id)
+        #(
+          list.flatten([objects, [page_object, content_object], font_objects]),
+          next_id,
+        )
       },
     )
 
-  [catalog, pages, ..page_objects]
+  [catalog, pages, ..page_objectects]
 }
 
 fn page_to_objects(
@@ -547,35 +627,70 @@ fn page_to_objects(
 ) -> #(Object, Object, List(Object), Int) {
   let content_id = next_id
   let fonts = collect_fonts(page.contents, document.default_font)
+  let images = collect_images(page.contents)
   let font_start_id = next_id + 1
   let size = option.unwrap(page.size, document.default_page_size)
 
-  let #(font_dict, font_objs, next_id) =
+  let #(font_dict, font_objects, next_id) =
     list.fold(
       list.index_map(fonts, fn(font, i) { #(font, i) }),
       #([], [], font_start_id),
       fn(acc, pair) {
-        let #(dict, objs, obj_id) = acc
+        let #(dict, objs, object_id) = acc
         let #(font, index) = pair
         let font_key = "F" <> int.to_string(index + 1)
-        let font_obj =
-          Object(obj_id, None, [
+        let font_object =
+          Object(object_id, None, [
             #("Type", Name("Font")),
             #("Subtype", Name("Type1")),
             #("BaseFont", Name(font)),
             #("Encoding", Name("WinAnsiEncoding")),
           ])
         #(
-          [#(font_key, Reference(obj_id)), ..dict],
-          [font_obj, ..objs],
-          obj_id + 1,
+          [#(font_key, Reference(object_id)), ..dict],
+          [font_object, ..objs],
+          object_id + 1,
+        )
+      },
+    )
+
+  let #(image_dict, image_objects, next_id) =
+    list.fold(
+      list.index_map(images, fn(image, i) { #(image, i) }),
+      #([], [], next_id),
+      fn(acc, pair) {
+        let #(dict, objs, object_id) = acc
+        let #(image, index) = pair
+        let image_key = "Im" <> int.to_string(index + 1)
+        let image_object =
+          Object(object_id, Some(image.data), [
+            #("Type", Name("XObject")),
+            #("Subtype", Name("Image")),
+            #("Width", Int(image.file_width)),
+            #("Height", Int(image.file_height)),
+            #("ColorSpace", Name("DeviceRGB")),
+            #("BitsPerComponent", Int(8)),
+            #("Filter", Name("DCTDecode")),
+          ])
+        #(
+          [#(image_key, Reference(object_id)), ..dict],
+          [image_object, ..objs],
+          object_id + 1,
         )
       },
     )
 
   let content_stream = render_content_stream(page.contents, document)
 
-  let page_obj =
+  let resources = case image_dict {
+    [] -> [#("Font", Dictionary(font_dict))]
+    _ -> [
+      #("Font", Dictionary(font_dict)),
+      #("XObject", Dictionary(image_dict)),
+    ]
+  }
+
+  let page_object =
     Object(page_id, None, [
       #("Type", Name("Page")),
       #("Parent", Reference(2)),
@@ -583,13 +698,18 @@ fn page_to_objects(
         "MediaBox",
         Array([Int(0), Int(0), Float(size.width), Float(size.height)]),
       ),
-      #("Resources", Dictionary([#("Font", Dictionary(font_dict))])),
+      #("Resources", Dictionary(resources)),
       #("Contents", Reference(content_id)),
     ])
 
-  let content_obj = Object(content_id, Some(content_stream), [])
+  let content_object = Object(content_id, Some(content_stream), [])
 
-  #(page_obj, content_obj, list.reverse(font_objs), next_id)
+  #(
+    page_object,
+    content_object,
+    list.flatten([list.reverse(font_objects), list.reverse(image_objects)]),
+    next_id,
+  )
 }
 
 fn collect_fonts(contents: List(Content), default_font: String) -> List(String) {
@@ -605,6 +725,23 @@ fn collect_fonts(contents: List(Content), default_font: String) -> List(String) 
       ContentRectangle(_) -> fonts
       ContentPath(_) -> fonts
       ContentShape(_) -> fonts
+      JpegImage(_) -> fonts
+    }
+  })
+  |> list.reverse
+}
+
+fn collect_images(contents: List(Content)) -> List(Image) {
+  list.fold(contents, [], fn(images, content) {
+    case content {
+      JpegImage(image) -> {
+        // Deduplicate by comparing the data reference
+        case list.find(images, fn(i: Image) { i.data == image.data }) {
+          Ok(_) -> images
+          Error(_) -> [image, ..images]
+        }
+      }
+      _ -> images
     }
   })
   |> list.reverse
@@ -615,12 +752,14 @@ fn render_content_stream(
   document: Document,
 ) -> BitArray {
   let fonts = collect_fonts(contents, document.default_font)
+  let images = collect_images(contents)
   list.fold(contents, <<>>, fn(stream, content) {
     case content {
       ContentText(text) -> render_text(stream, text, fonts, document)
       ContentRectangle(rect) -> render_rectangle(stream, rect)
       ContentPath(path) -> render_path(stream, path)
       ContentShape(shape) -> render_shape(stream, shape)
+      JpegImage(image) -> render_image(stream, image, images)
     }
   })
 }
@@ -864,6 +1003,55 @@ fn render_shape(stream: BitArray, shape: Shape) -> BitArray {
   }
 }
 
+fn render_image(stream: BitArray, image: Image, images: List(Image)) -> BitArray {
+  let Image(
+    data:,
+    file_width:,
+    file_height:,
+    x:,
+    y:,
+    render_width:,
+    render_height:,
+  ) = image
+
+  // Find image index by matching data
+  let image_index =
+    list.index_fold(images, 0, fn(found, img, index) {
+      case img.data == data {
+        True -> index
+        False -> found
+      }
+    })
+
+  let image_key = "/Im" <> int.to_string(image_index + 1)
+
+  // Calculate render size, preserving aspect ratio if only one dimension is set
+  let aspect_ratio = int.to_float(file_width) /. int.to_float(file_height)
+  let #(width, height) = case render_width, render_height {
+    Some(w), Some(h) -> #(w, h)
+    Some(w), None -> #(w, w /. aspect_ratio)
+    None, Some(h) -> #(h *. aspect_ratio, h)
+    None, None -> #(int.to_float(file_width), int.to_float(file_height))
+  }
+
+  // Save graphics state, set transformation matrix, draw image, restore state
+  // The transformation matrix [width 0 0 height x y] scales and positions the image
+  <<
+    stream:bits,
+    "q\n",
+    render_float(width):utf8,
+    " 0 0 ",
+    render_float(height):utf8,
+    " ",
+    render_float(x):utf8,
+    " ",
+    render_float(y):utf8,
+    " cm\n",
+    image_key:utf8,
+    " Do\nQ\n",
+  >>
+}
+
 fn render_pdf(objects: List(Object), info: Info) -> BitArray {
   let pdf = <<"%PDF-1.4\n">>
   let info_id = list.length(objects) + 1
@@ -1057,6 +1245,60 @@ fn encode_text(in: BitArray, out: BitArray) -> BitArray {
     <<c, rest:bytes>> -> encode_text(rest, <<out:bits, c>>)
 
     rest -> <<out:bits, rest:bits>>
+  }
+}
+
+fn parse_image_dimensions(data: BitArray) -> Result(#(Int, Int), ImageError) {
+  case data {
+    // JPEG: starts with FF D8
+    <<0xFF, 0xD8, rest:bytes>> -> parse_jpeg_dimensions(rest)
+    // PNG: starts with 89 50 4E 47 0D 0A 1A 0A
+    <<0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, _:bytes>> ->
+      Error(UnsupportedImageFormat("PNG"))
+    // GIF: starts with GIF8
+    <<0x47, 0x49, 0x46, 0x38, _:bytes>> -> Error(UnsupportedImageFormat("GIF"))
+    // BMP: starts with BM
+    <<0x42, 0x4D, _:bytes>> -> Error(UnsupportedImageFormat("BMP"))
+    // WebP: starts with RIFF....WEBP
+    <<0x52, 0x49, 0x46, 0x46, _, _, _, _, 0x57, 0x45, 0x42, 0x50, _:bytes>> ->
+      Error(UnsupportedImageFormat("WebP"))
+    _ -> Error(UnknownImageFormat)
+  }
+}
+
+fn parse_jpeg_dimensions(data: BitArray) -> Result(#(Int, Int), ImageError) {
+  case data {
+    // End of data without finding SOF
+    <<>> | <<_>> -> Error(UnknownImageFormat)
+
+    // SOF markers (0xFFC0-0xFFCF, except 0xFFC4 which is DHT)
+    // Format: FF Cx LENGTH(2) PRECISION(1) HEIGHT(2) WIDTH(2)
+    <<
+      0xFF,
+      marker,
+      _:bytes-size(2),
+      _,
+      height:big-size(16),
+      width:big-size(16),
+      _:bytes,
+    >>
+      if marker >= 0xC0 && marker <= 0xCF && marker != 0xC4
+    -> Ok(#(width, height))
+
+    // Skip other markers (they have length field)
+    <<0xFF, marker, length:big-size(16), rest:bytes>> if marker != 0x00 -> {
+      // Length includes the 2 length bytes, so skip length - 2 more bytes
+      let skip_count = length - 2
+      case rest {
+        <<_:bytes-size(skip_count), rest:bytes>> -> parse_jpeg_dimensions(rest)
+        _ -> Error(UnknownImageFormat)
+      }
+    }
+
+    // Skip any other bytes
+    <<_, rest:bytes>> -> parse_jpeg_dimensions(rest)
+
+    _ -> Error(UnknownImageFormat)
   }
 }
 

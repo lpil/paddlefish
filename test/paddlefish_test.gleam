@@ -1,6 +1,8 @@
 import birdie
 import gleam/bit_array
 import gleam/crypto
+import gleam/int
+import gleam/string
 import gleam/time/timestamp
 import gleeunit
 import paddlefish as pdf
@@ -370,31 +372,88 @@ pub fn pdf_with_special_characters_test() {
   |> birdie.snap("pdf_with_special_characters_test")
 }
 
+pub fn pdf_with_jpeg_image_test() {
+  let assert Ok(image_data) =
+    simplifile.read_bits("test/opera_senza_titolo.jpg")
+  let assert Ok(image) = pdf.image(image_data)
+
+  let bytes =
+    pdf.new_document()
+    |> pdf.add_page(
+      pdf.new_page()
+      // Scale by width, height preserves aspect ratio
+      |> pdf.add_image(
+        image
+        |> pdf.image_position(x: 100.0, y: 400.0)
+        |> pdf.image_width(400.0),
+      )
+      // Scale by both dimensions
+      |> pdf.add_image(
+        image
+        |> pdf.image_position(x: 100.0, y: 100.0)
+        |> pdf.image_width(200.0)
+        |> pdf.image_height(150.0),
+      ),
+    )
+    |> pdf.render
+
+  let assert Ok(_) =
+    simplifile.write_bits("pdfs/pdf_with_jpeg_image_test.pdf", bytes)
+
+  bytes
+  |> bit_array_to_lossy_string
+  |> birdie.snap("pdf_with_jpeg_image_test")
+}
+
+pub fn image_rejects_png_test() {
+  let assert Ok(data) = simplifile.read_bits("test/opera_senza_titolo.png")
+  let result = pdf.image(data)
+  assert result == Error(pdf.UnsupportedImageFormat("PNG"))
+}
+
+pub fn image_rejects_unknown_format_test() {
+  let result = pdf.image(<<"not an image":utf8>>)
+  assert result == Error(pdf.UnknownImageFormat)
+}
+
 pub fn bit_array_to_lossy_string(input: BitArray) -> String {
   lossy_string(input, "")
 }
 
 fn lossy_string(input: BitArray, output: String) -> String {
   case input {
-    <<codepoint:utf8_codepoint, input:bytes>> -> {
-      let assert Ok(new) = bit_array.to_string(<<codepoint:utf8_codepoint>>)
-      lossy_string(input, output <> new)
-    }
-    <<first, input:bytes>> -> {
-      let #(data, input) = take_non_utf8(input, <<first>>)
-      let hash =
-        crypto.hash(crypto.Sha256, data) |> bit_array.base64_encode(False)
-      lossy_string(input, output <> "{binary:" <> hash <> "}")
-    }
     <<>> -> output
-    _ -> panic as "non-byte aligned string"
+
+    // Detect "stream\n" followed by JPEG magic bytes - hash the image
+    <<"stream\n":utf8, 0xFF, 0xD8, rest:bytes>> -> {
+      let #(stream_data, rest) = take_until_endstream(rest, <<0xFF, 0xD8>>)
+      let hash =
+        crypto.hash(crypto.Sha256, stream_data)
+        |> bit_array.base64_encode(False)
+      lossy_string(rest, output <> "stream\n{image:" <> hash <> "}")
+    }
+
+    <<codepoint:utf8_codepoint, rest:bytes>> -> {
+      let assert Ok(new) = bit_array.to_string(<<codepoint:utf8_codepoint>>)
+      lossy_string(rest, output <> new)
+    }
+
+    <<byte, rest:bytes>> -> {
+      let hex = int.to_base16(byte) |> string.lowercase
+      lossy_string(rest, output <> "\\u{" <> hex <> "}")
+    }
+
+    _ -> panic as "non-byte aligned bit array"
   }
 }
 
-fn take_non_utf8(input: BitArray, output: BitArray) -> #(BitArray, BitArray) {
+fn take_until_endstream(
+  input: BitArray,
+  output: BitArray,
+) -> #(BitArray, BitArray) {
   case input {
-    <<_:utf8_codepoint, _:bytes>> -> #(output, input)
-    <<data, input:bytes>> -> take_non_utf8(input, <<output:bits, data>>)
-    _ -> panic as "non-byte aligned string"
+    <<"\nendstream":utf8, _:bytes>> -> #(output, input)
+    <<byte, rest:bytes>> -> take_until_endstream(rest, <<output:bits, byte>>)
+    _ -> #(output, <<>>)
   }
 }

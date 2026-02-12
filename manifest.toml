@@ -19,6 +19,7 @@ packages = [
   { name = "glexer", version = "2.3.1", build_tools = ["gleam"], requirements = ["gleam_stdlib", "splitter"], otp_app = "glexer", source = "hex", outer_checksum = "41D8D2E855AEA87ADC94B7AF26A5FEA3C90268D4CF2CCBBD64FD6863714EE085" },
   { name = "global_value", version = "1.0.0", build_tools = ["gleam"], requirements = ["gleam_stdlib"], otp_app = "global_value", source = "hex", outer_checksum = "23F74C91A7B819C43ABCCBF49DAD5BB8799D81F2A3736BA9A534BD47F309FF4F" },
   { name = "justin", version = "1.0.1", build_tools = ["gleam"], requirements = ["gleam_stdlib"], otp_app = "justin", source = "hex", outer_checksum = "7FA0C6DB78640C6DC5FBFD59BF3456009F3F8B485BF6825E97E1EB44E9A1E2CD" },
+  { name = "murmur3a", version = "1.0.1", build_tools = ["gleam"], requirements = ["gleam_stdlib"], otp_app = "murmur3a", source = "hex", outer_checksum = "78B79191F05CE04962E9A416F72839987537A99EC7DDF47750A8AE19E628BB2A" },
   { name = "rank", version = "1.0.0", build_tools = ["gleam"], requirements = ["gleam_stdlib"], otp_app = "rank", source = "hex", outer_checksum = "5660E361F0E49CBB714CC57CC4C89C63415D8986F05B2DA0C719D5642FAD91C9" },
   { name = "simplifile", version = "2.3.2", build_tools = ["gleam"], requirements = ["filepath", "gleam_stdlib"], otp_app = "simplifile", source = "hex", outer_checksum = "E049B4DACD4D206D87843BCF4C775A50AE0F50A52031A2FFB40C9ED07D6EC70A" },
   { name = "splitter", version = "1.2.0", build_tools = ["gleam"], requirements = ["gleam_stdlib"], otp_app = "splitter", source = "hex", outer_checksum = "3DFD6B6C49E61EDAF6F7B27A42054A17CFF6CA2135FF553D0CB61C234D281DD0" },
@@ -33,4 +34,5 @@ gleam_crypto = { version = ">= 1.5.1 and < 2.0.0" }
 gleam_stdlib = { version = ">= 0.44.0 and < 2.0.0" }
 gleam_time = { version = ">= 1.7.0 and < 2.0.0" }
 gleeunit = { version = ">= 1.0.0 and < 2.0.0" }
+murmur3a = { version = ">= 1.0.1 and < 2.0.0" }
 simplifile = { version = ">= 2.3.2 and < 3.0.0" }

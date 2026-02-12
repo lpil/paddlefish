@@ -34,37 +34,37 @@ BT
 0 0 0 rg
 /F1 12 Tf
 1 0 0 1 72 750 Tm
-(Euro: {binary:dr6LUo0Adfeq6Y1vpXptPIOuSAqEaeZo17CvlomVrHE}  Quotes: "curly" 'single') Tj
+(Euro: \u{80}  Quotes: "curly" 'single') Tj
 ET
 BT
 0 0 0 rg
 /F1 12 Tf
 1 0 0 1 72 720 Tm
-(Dashes: {binary:hIc4VNugLPanZaYnejETAbJlan93CFGCj+eS7O+QkuM} em {binary:Kgq3MrTp2F733CUwO2SrUnwlpNd4Feu1efOW7GysytM} and ellipsis{binary:wA5/iJz8khbsgYvy4Wgvxq8NiZOckXdmaUeMryfJcnw}) Tj
+(Dashes: \u{96} em \u{97} and ellipsis\u{85}) Tj
 ET
 BT
 0 0 0 rg
 /F1 12 Tf
 1 0 0 1 72 690 Tm
-(Symbols: {binary:PL2vZrPdKxdHiKLxf5OLUt2pOiqXRAzq0ZMyy/rLp8g} {binary:S/omCmYdaBEKegpFJk0tQ6+XJ96SXMLgn7aHs2Ue/p0} {binary:W60NETKsFSz2V76JGK4WNXhEjVbUDe+aWQ/j3KsMM5s} {binary:6bDAMfBJPT/WsLZoJgx55+/nNL/UtBFfnYK8O+YJwpQ} {binary:/ZUouSDW05VunhYRRSPhiJx1HoweBAGCEW1MkGtD9Vg}) Tj
+(Symbols: \u{86} \u{87} \u{95} \u{89} \u{99}) Tj
 ET
 BT
 0 0 0 rg
 /F1 12 Tf
 1 0 0 1 72 660 Tm
-(Letters: {binary:ne+wqeFjJ4vg4FqgGzEux4z6NyaGlQM4XnbjpLeVBkg} {binary:bj+vHifUX8pwI0ro9vCnNGIs/4puqCS39g0/+voqRlQ} {binary:LTGTaRk0EkRhgJ+5vH5nEhUJn8fZYb++MZQ9QNR3yJA} {binary:BgXRU064mV/o/H3PH6wCXqXib8Jtax/Cx5qg8EFZ70E} {binary:lJ+U2FjvatEzMWTXlqDXd/2C+RVezn1vrWjAuZLw568} {binary:Na8tFeveTWeylWnsGXSegTx28CKGr8WiqYccK/vaqzI} {binary:HxhPEBxn1YW6ANJM/eNoY/dH+6uehK93YOx3Hps2ylE} {binary:XuDdTUhAIp+rSoZDjvvK8blXGvlPWs5azJTeGemOqas}) Tj
+(Letters: \u{8c} \u{9c} \u{8a} \u{9a} \u{8e} \u{9e} \u{9f} \u{83}) Tj
 ET
 BT
 0 0 0 rg
 /F1 12 Tf
 1 0 0 1 72 630 Tm
-(Accents: {binary:3i4zHYka4menAJy0W06IMPFw4Mk3KI6icxoZQcelOw0} {binary:fYxdp/1Bg3kEjkMLM9yP/NpznkQya4pdZH3ArYHtIVc} {binary:mHIuLr7Y7T02UuEeQYHw3Mwc59GS2PHbNwr47EpOF0o} {binary:1PCeXFr5miTH4wTKeZfSbLAJAWl94IpJvg1Gq1g5thQ} {binary:0HUrYK2xSMoLO00lkYdOLavTRjc+cxwnRj1ltEnMI0w} {binary:5Zao5cSd0gp5vQwafdGQpnRQfREpeFdG/MHF5kzYQWw} {binary:q2G6EaOLAH/5i6o6sg4qWE4VJp/UKNs8hX4qLVaLVyU} {binary:Cjqu58z7GmT217zUZlfCfLH0Vprp58A0Rb1sb9ATEJs}) Tj
+(Accents: \u{e9} \u{e0} \u{fc} \u{f1} \u{e7} \u{f8} \u{e5} \u{e6}) Tj
 ET
 BT
 0 0 0 rg
 /F1 12 Tf
 1 0 0 1 72 600 Tm
-(Currency: {binary:bZD7rMBz7gtMQ/OjKRzs2jN2T21m0UIkrWD0cfLIM0s} {binary:aSLpPjgnZCzkuIPHVrMav4ADZknTYUv1/LOt2kO46jI} {binary:CkOyLYn6JJm+XHcEyb8nMmCwypWI5M0Yl82A+cls2Xo} {binary:no6MN6U7rHemU9WQt4OyUI6O0v7QQKJ4v09HA7vV2C0} {binary:GXU6m3aBs2EEwfed/IpqHszAiLjH0pA6RG2BaU0vs6k} {binary:9Pl8iMQJ3PN4m1tRjaP30mbEiAZul6YG44oVB3mIBzU} {binary:FJSI2GnL7wgGAqNxqw052XrxA/tyaq6wLM02wG9JTl0}) Tj
+(Currency: \u{a3} \u{a5} \u{a2} \u{a9} \u{ae} \u{b0} \u{b1}) Tj
 ET
 BT
 0 0 0 rg
