@@ -22,7 +22,7 @@ pub fn main() -> Nil {
   )
 
   let data = pdf.render(document)
-  assert simplifile.write_bits("important.pdf") == Ok(Nil)
+  assert simplifile.write_bits("important.pdf", data) == Ok(Nil)
 }
 ```
 
