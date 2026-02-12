@@ -9,6 +9,7 @@ import gleam/set
 import gleam/string
 import gleam/time/calendar
 import gleam/time/timestamp
+import gleam_community/colour.{type Colour}
 
 /// A PDF document.
 ///
@@ -75,14 +76,6 @@ pub fn landscape(size: PageSize) -> PageSize {
     True -> size
     False -> PageSize(width: size.height, height: size.width)
   }
-}
-
-/// A colour for use in PDF content.
-///
-pub type Colour {
-  /// An RGB colour with red, green, and blue components from 0.0 to 1.0.
-  ///
-  Rgb(red: Float, green: Float, blue: Float)
 }
 
 /// A piece of text to be drawn on a page.
@@ -217,7 +210,7 @@ pub fn new_document() -> Document {
     pages: [],
     default_font: "Helvetica",
     default_text_size: 12.0,
-    default_text_colour: Rgb(0.0, 0.0, 0.0),
+    default_text_colour: colour.black,
     default_page_size: size_a4,
   )
 }
@@ -798,13 +791,14 @@ fn render_text(
   let font_index = dict.get(fonts, font) |> result.unwrap(0)
   let font_key = "/F" <> int.to_string(font_index + 1)
   let stream = <<stream:bits, "BT\n">>
+  let #(red, green, blue, _alpha) = colour.to_rgba(colour)
   let stream = <<
     stream:bits,
-    render_float(colour.red):utf8,
+    render_float(red):utf8,
     " ",
-    render_float(colour.green):utf8,
+    render_float(green):utf8,
     " ",
-    render_float(colour.blue):utf8,
+    render_float(blue):utf8,
     " rg\n",
   >>
   let encoded_content = encode_text(<<content:utf8>>, <<>>)
@@ -842,29 +836,35 @@ fn render_rectangle(stream: BitArray, rect: Rectangle) -> BitArray {
 
   // Set fill colour if specified
   let stream = case fill_colour {
-    Some(Rgb(r, g, b)) -> <<
-      stream:bits,
-      render_float(r):utf8,
-      " ",
-      render_float(g):utf8,
-      " ",
-      render_float(b):utf8,
-      " rg\n",
-    >>
+    Some(colour) -> {
+      let #(red, green, blue, _alpha) = colour.to_rgba(colour)
+      <<
+        stream:bits,
+        render_float(red):utf8,
+        " ",
+        render_float(green):utf8,
+        " ",
+        render_float(blue):utf8,
+        " rg\n",
+      >>
+    }
     None -> stream
   }
 
   // Set stroke colour if specified
   let stream = case stroke_colour {
-    Some(Rgb(r, g, b)) -> <<
-      stream:bits,
-      render_float(r):utf8,
-      " ",
-      render_float(g):utf8,
-      " ",
-      render_float(b):utf8,
-      " RG\n",
-    >>
+    Some(colour) -> {
+      let #(red, green, blue, _alpha) = colour.to_rgba(colour)
+      <<
+        stream:bits,
+        render_float(red):utf8,
+        " ",
+        render_float(green):utf8,
+        " ",
+        render_float(blue):utf8,
+        " RG\n",
+      >>
+    }
     None -> stream
   }
 
@@ -901,15 +901,18 @@ fn render_path(stream: BitArray, path: Path) -> BitArray {
 
   // Set stroke colour if specified
   let stream = case stroke_colour {
-    Some(Rgb(r, g, b)) -> <<
-      stream:bits,
-      render_float(r):utf8,
-      " ",
-      render_float(g):utf8,
-      " ",
-      render_float(b):utf8,
-      " RG\n",
-    >>
+    Some(colour) -> {
+      let #(red, green, blue, _alpha) = colour.to_rgba(colour)
+      <<
+        stream:bits,
+        render_float(red):utf8,
+        " ",
+        render_float(green):utf8,
+        " ",
+        render_float(blue):utf8,
+        " RG\n",
+      >>
+    }
     None -> stream
   }
 
@@ -953,29 +956,35 @@ fn render_shape(stream: BitArray, shape: Shape) -> BitArray {
 
   // Set fill colour if specified
   let stream = case fill_colour {
-    Some(Rgb(r, g, b)) -> <<
-      stream:bits,
-      render_float(r):utf8,
-      " ",
-      render_float(g):utf8,
-      " ",
-      render_float(b):utf8,
-      " rg\n",
-    >>
+    Some(colour) -> {
+      let #(red, green, blue, _alpha) = colour.to_rgba(colour)
+      <<
+        stream:bits,
+        render_float(red):utf8,
+        " ",
+        render_float(green):utf8,
+        " ",
+        render_float(blue):utf8,
+        " rg\n",
+      >>
+    }
     None -> stream
   }
 
   // Set stroke colour if specified
   let stream = case stroke_colour {
-    Some(Rgb(r, g, b)) -> <<
-      stream:bits,
-      render_float(r):utf8,
-      " ",
-      render_float(g):utf8,
-      " ",
-      render_float(b):utf8,
-      " RG\n",
-    >>
+    Some(colour) -> {
+      let #(red, green, blue, _alpha) = colour.to_rgba(colour)
+      <<
+        stream:bits,
+        render_float(red):utf8,
+        " ",
+        render_float(green):utf8,
+        " ",
+        render_float(blue):utf8,
+        " RG\n",
+      >>
+    }
     None -> stream
   }
 

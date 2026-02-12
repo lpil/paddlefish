@@ -1,11 +1,12 @@
+import gleam_community/colour
 import paddlefish as pdf
 import simplifile
 
 pub fn main() {
-  let pink = pdf.Rgb(1.0, 0.5, 0.8)
-  let dark_pink = pdf.Rgb(0.8, 0.2, 0.5)
-  let light_grey = pdf.Rgb(0.95, 0.95, 0.95)
-  let dark_grey = pdf.Rgb(0.3, 0.3, 0.3)
+  let assert Ok(pink) = colour.from_rgb(1.0, 0.5, 0.8)
+  let assert Ok(dark_pink) = colour.from_rgb(0.8, 0.2, 0.5)
+  let assert Ok(light_grey) = colour.from_rgb(0.95, 0.95, 0.95)
+  let assert Ok(dark_grey) = colour.from_rgb(0.3, 0.3, 0.3)
   let font = "Helvetica"
   let bold = "Helvetica-Bold"
   let italic = "Helvetica-Oblique"
@@ -130,7 +131,7 @@ pub fn main() {
 fn table_row(
   page: pdf.Page,
   y: Float,
-  background: pdf.Colour,
+  background: colour.Colour,
   font: String,
   text1: String,
   text2: String,

@@ -4,6 +4,7 @@ import gleam/crypto
 import gleam/int
 import gleam/string
 import gleam/time/timestamp
+import gleam_community/colour
 import gleeunit
 import paddlefish as pdf
 import simplifile
@@ -136,31 +137,31 @@ pub fn pdf_with_coloured_text_test() {
       pdf.new_page()
       |> pdf.add_text(
         pdf.text("Red", x: 72.0, y: 700.0)
-        |> pdf.text_colour(pdf.Rgb(1.0, 0.0, 0.0)),
+        |> pdf.text_colour(colour(1.0, 0.0, 0.0)),
       )
       |> pdf.add_text(
         pdf.text("Orange", x: 72.0, y: 650.0)
-        |> pdf.text_colour(pdf.Rgb(1.0, 0.5, 0.0)),
+        |> pdf.text_colour(colour(1.0, 0.5, 0.0)),
       )
       |> pdf.add_text(
         pdf.text("Yellow", x: 72.0, y: 600.0)
-        |> pdf.text_colour(pdf.Rgb(1.0, 1.0, 0.0)),
+        |> pdf.text_colour(colour(1.0, 1.0, 0.0)),
       )
       |> pdf.add_text(
         pdf.text("Green", x: 72.0, y: 550.0)
-        |> pdf.text_colour(pdf.Rgb(0.0, 1.0, 0.0)),
+        |> pdf.text_colour(colour(0.0, 1.0, 0.0)),
       )
       |> pdf.add_text(
         pdf.text("Cyan", x: 72.0, y: 500.0)
-        |> pdf.text_colour(pdf.Rgb(0.0, 1.0, 1.0)),
+        |> pdf.text_colour(colour(0.0, 1.0, 1.0)),
       )
       |> pdf.add_text(
         pdf.text("Blue", x: 72.0, y: 450.0)
-        |> pdf.text_colour(pdf.Rgb(0.0, 0.0, 1.0)),
+        |> pdf.text_colour(colour(0.0, 0.0, 1.0)),
       )
       |> pdf.add_text(
         pdf.text("Violet", x: 72.0, y: 400.0)
-        |> pdf.text_colour(pdf.Rgb(0.5, 0.0, 1.0)),
+        |> pdf.text_colour(colour(0.5, 0.0, 1.0)),
       ),
     )
     |> pdf.render
@@ -184,7 +185,7 @@ pub fn pdf_with_zig_zag_line_test() {
         |> pdf.line(x: 172.0, y: 700.0)
         |> pdf.line(x: 222.0, y: 750.0)
         |> pdf.line(x: 272.0, y: 700.0)
-        |> pdf.path_stroke_colour(pdf.Rgb(1.0, 0.4, 0.7))
+        |> pdf.path_stroke_colour(colour(1.0, 0.4, 0.7))
         |> pdf.path_line_width(2.0),
       ),
     )
@@ -208,8 +209,8 @@ pub fn pdf_with_triangle_test() {
         |> pdf.line(x: 272.0, y: 500.0)
         |> pdf.line(x: 172.0, y: 700.0)
         |> pdf.shape
-        |> pdf.shape_fill_colour(pdf.Rgb(0.4, 0.8, 0.9))
-        |> pdf.shape_stroke_colour(pdf.Rgb(0.0, 0.5, 0.6))
+        |> pdf.shape_fill_colour(colour(0.4, 0.8, 0.9))
+        |> pdf.shape_stroke_colour(colour(0.0, 0.5, 0.6))
         |> pdf.shape_line_width(2.0),
       ),
     )
@@ -240,8 +241,8 @@ pub fn pdf_with_triangle_donut_test() {
       pdf.new_page()
       |> pdf.add_shape(
         pdf.compound_shape([outer, inner])
-        |> pdf.shape_fill_colour(pdf.Rgb(0.6, 0.4, 0.8))
-        |> pdf.shape_stroke_colour(pdf.Rgb(0.3, 0.1, 0.5))
+        |> pdf.shape_fill_colour(colour(0.6, 0.4, 0.8))
+        |> pdf.shape_stroke_colour(colour(0.3, 0.1, 0.5))
         |> pdf.shape_line_width(2.0),
       ),
     )
@@ -266,7 +267,7 @@ pub fn pdf_with_fill_only_shape_test() {
         |> pdf.line(x: 300.0, y: 700.0)
         |> pdf.line(x: 100.0, y: 700.0)
         |> pdf.shape
-        |> pdf.shape_fill_colour(pdf.Rgb(0.2, 0.6, 0.4)),
+        |> pdf.shape_fill_colour(colour(0.2, 0.6, 0.4)),
       ),
     )
     |> pdf.render
@@ -289,8 +290,8 @@ pub fn pdf_with_thick_stroke_shape_test() {
         |> pdf.line(x: 300.0, y: 500.0)
         |> pdf.line(x: 200.0, y: 700.0)
         |> pdf.shape
-        |> pdf.shape_fill_colour(pdf.Rgb(1.0, 0.9, 0.6))
-        |> pdf.shape_stroke_colour(pdf.Rgb(0.8, 0.4, 0.0))
+        |> pdf.shape_fill_colour(colour(1.0, 0.9, 0.6))
+        |> pdf.shape_stroke_colour(colour(0.8, 0.4, 0.0))
         |> pdf.shape_line_width(15.0),
       ),
     )
@@ -311,17 +312,17 @@ pub fn pdf_with_rectangles_test() {
       pdf.new_page()
       |> pdf.add_rectangle(
         pdf.rectangle(x: 72.0, y: 700.0, width: 100.0, height: 50.0)
-        |> pdf.rectangle_fill_colour(pdf.Rgb(1.0, 0.0, 0.0)),
+        |> pdf.rectangle_fill_colour(colour(1.0, 0.0, 0.0)),
       )
       |> pdf.add_rectangle(
         pdf.rectangle(x: 72.0, y: 600.0, width: 100.0, height: 50.0)
-        |> pdf.rectangle_stroke_colour(pdf.Rgb(0.0, 0.0, 1.0))
+        |> pdf.rectangle_stroke_colour(colour(0.0, 0.0, 1.0))
         |> pdf.rectangle_line_width(2.0),
       )
       |> pdf.add_rectangle(
         pdf.rectangle(x: 72.0, y: 500.0, width: 100.0, height: 50.0)
-        |> pdf.rectangle_fill_colour(pdf.Rgb(1.0, 1.0, 0.0))
-        |> pdf.rectangle_stroke_colour(pdf.Rgb(0.0, 0.0, 0.0))
+        |> pdf.rectangle_fill_colour(colour(1.0, 1.0, 0.0))
+        |> pdf.rectangle_stroke_colour(colour(0.0, 0.0, 0.0))
         |> pdf.rectangle_line_width(3.0),
       ),
     )
@@ -456,4 +457,9 @@ fn take_until_endstream(
     <<byte, rest:bytes>> -> take_until_endstream(rest, <<output:bits, byte>>)
     _ -> #(output, <<>>)
   }
+}
+
+fn colour(r: Float, g: Float, b: Float) -> colour.Colour {
+  let assert Ok(colour) = colour.from_rgb(r, g, b)
+  colour
 }
