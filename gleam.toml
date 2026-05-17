@@ -15,6 +15,6 @@ gleam_community_colour = ">= 2.0.4 and < 3.0.0"
 
 [dev-dependencies]
 gleeunit = ">= 1.0.0 and < 2.0.0"
-birdie = ">= 1.5.4 and < 2.0.0"
 gleam_crypto = ">= 1.5.1 and < 2.0.0"
 simplifile = ">= 2.3.2 and < 3.0.0"
+birdie = ">= 2.0.0 and < 3.0.0"
