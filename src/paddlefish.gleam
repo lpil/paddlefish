@@ -397,7 +397,10 @@ pub fn rectangle(
 
 /// Set the fill colour for a rectangle.
 ///
-pub fn rectangle_fill_colour(rectangle: Rectangle, colour: Colour) -> Rectangle {
+pub fn rectangle_fill_colour(
+  rectangle: Rectangle,
+  colour: Colour,
+) -> Rectangle {
   Rectangle(..rectangle, fill_colour: Some(colour))
 }
 
@@ -606,7 +609,7 @@ pub fn render(document: Document) -> BitArray {
 fn document_to_objects(document: Document) -> List(Object) {
   let pages = list.reverse(document.pages)
   let page_count = list.length(pages)
-  let page_ids = list.range(3, 3 + page_count - 1)
+  let page_ids = int.range(3 + page_count - 1, 2, [], list.prepend)
   let page_refs = list.map(page_ids, Reference)
 
   let catalog =
@@ -843,7 +846,11 @@ fn collect_alpha(
   }
 }
 
-fn set_alpha(stream: BitArray, alpha: Float, indexes: AssetIndexes) -> BitArray {
+fn set_alpha(
+  stream: BitArray,
+  alpha: Float,
+  indexes: AssetIndexes,
+) -> BitArray {
   case alpha <. 1.0 {
     True -> {
       let gs_index = dict.get(indexes.alphas, alpha) |> result.unwrap(0)
@@ -989,7 +996,11 @@ fn render_rectangle(
   }
 }
 
-fn render_path(stream: BitArray, path: Path, indexes: AssetIndexes) -> BitArray {
+fn render_path(
+  stream: BitArray,
+  path: Path,
+  indexes: AssetIndexes,
+) -> BitArray {
   let Path(start_x:, start_y:, operations:, stroke_colour:, line_width:) = path
 
   // Set line width if specified
