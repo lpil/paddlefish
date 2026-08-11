@@ -634,6 +634,7 @@ fn document_to_objects(document: Document) -> List(Object) {
     })
 
   [catalog, pages_object, ..page_objects]
+  |> list.sort(fn(a, b) { int.compare(a.id, b.id) })
 }
 
 fn page_to_objects(
