@@ -1,0 +1,103 @@
+---
+version: 2.0.0
+title: pdf_with_two_pages_test
+file: ./test/paddlefish_test.gleam
+test_name: pdf_with_two_pages_test
+---
+%PDF-1.4
+1 0 obj
+<</Type /Catalog
+/Pages 2 0 R
+>>
+endobj
+2 0 obj
+<</Type /Pages
+/Kids [3 0 R 4 0 R ]
+/Count 2
+>>
+endobj
+3 0 obj
+<</Type /Page
+/Parent 2 0 R
+/MediaBox [0 0 595 842 ]
+/Resources <</Font <</F1 6 0 R
+>>
+>>
+/Contents 5 0 R
+>>
+endobj
+4 0 obj
+<</Type /Page
+/Parent 2 0 R
+/MediaBox [0 0 595 842 ]
+/Resources <</Font <</F1 8 0 R
+>>
+>>
+/Contents 7 0 R
+>>
+endobj
+5 0 obj
+<</Length 59
+>>
+stream
+BT
+0 0 0 rg
+/F1 12 Tf
+1 0 0 1 20 400 Tm
+(First page) Tj
+ET
+
+endstream
+endobj
+6 0 obj
+<</Type /Font
+/Subtype /Type1
+/BaseFont /Helvetica
+/Encoding /WinAnsiEncoding
+>>
+endobj
+7 0 obj
+<</Length 60
+>>
+stream
+BT
+0 0 0 rg
+/F1 12 Tf
+1 0 0 1 20 400 Tm
+(Second page) Tj
+ET
+
+endstream
+endobj
+8 0 obj
+<</Type /Font
+/Subtype /Type1
+/BaseFont /Helvetica
+/Encoding /WinAnsiEncoding
+>>
+endobj
+9 0 obj
+<<>>
+endobj
+xref
+0 10
+0000000000 65535 f 
+0000000009 00000 n 
+0000000057 00000 n 
+0000000120 00000 n 
+0000000244 00000 n 
+0000000368 00000 n 
+0000000476 00000 n 
+0000000572 00000 n 
+0000000681 00000 n 
+0000000777 00000 n 
+trailer
+<<
+/Size 10
+/Root 1 0 R
+/Info 9 0 R
+>>
+startxref
+797
+%%EOF
+
