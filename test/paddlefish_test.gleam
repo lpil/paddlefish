@@ -486,6 +486,27 @@ pub fn pdf_with_transparency_test() {
   |> birdie.snap("pdf_with_transparency_test")
 }
 
+pub fn pdf_with_two_pages_test() {
+  let bytes =
+    pdf.new_document()
+    |> pdf.add_page(
+      pdf.new_page()
+      |> pdf.add_text(pdf.text("First page", x: 20.0, y: 400.0)),
+    )
+    |> pdf.add_page(
+      pdf.new_page()
+      |> pdf.add_text(pdf.text("Second page", x: 20.0, y: 400.0)),
+    )
+    |> pdf.render
+
+  let assert Ok(_) =
+    simplifile.write_bits("pdfs/pdf_with_two_pages_test.pdf", bytes)
+
+  bytes
+  |> bit_array_to_lossy_string
+  |> birdie.snap("pdf_with_two_pages_test")
+}
+
 pub fn bit_array_to_lossy_string(input: BitArray) -> String {
   lossy_string(input, "")
 }
